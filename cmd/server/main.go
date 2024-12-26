@@ -51,20 +51,20 @@ func (ms *MemStorage) handleMetricUpdate(res http.ResponseWriter, req *http.Requ
 
 	res.Header().Set("Content-Type", "text/plain")
 
-	parcedUrl := strings.Split(req.URL.Path, "/")
-	if len(parcedUrl) < 5 {
+	parcedURL := strings.Split(req.URL.Path, "/")
+	if len(parcedURL) < 5 {
 		http.Error(res, "Невозможно обновить метрику(недостаточно параметров)", http.StatusNotFound)
 		return
-	} else if parcedUrl[1] != "update" {
-		http.Error(res, "Невозможно обновить метрику(где update?) "+parcedUrl[2], http.StatusNotFound)
+	} else if parcedURL[1] != "update" {
+		http.Error(res, "Невозможно обновить метрику(где update?) "+parcedURL[2], http.StatusNotFound)
 		return
-	} else if len(parcedUrl) == 6 && parcedUrl[6] != "" || len(parcedUrl) > 6 {
+	} else if len(parcedURL) == 6 && parcedURL[6] != "" || len(parcedURL) > 6 {
 		http.Error(res, "Невозможно обновить метрику(слишком много параметров)", http.StatusNotFound)
 	}
 
-	metricType := parcedUrl[2]
-	metricName := parcedUrl[3]
-	metricValue := parcedUrl[4]
+	metricType := parcedURL[2]
+	metricName := parcedURL[3]
+	metricValue := parcedURL[4]
 
 	if metricName == "" || metricValue == "" {
 		http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
