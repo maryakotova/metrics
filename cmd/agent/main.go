@@ -70,6 +70,7 @@ func sendMetric(metricType string, metricName string, metricValue interface{}) e
 
 	client := &http.Client{}
 	_, err = client.Do(req)
+	defer req.Body.Close()
 
 	if err != nil {
 		fmt.Println("Error sending metric:", err)
