@@ -103,7 +103,7 @@ func main() {
 				err := sendMetric(metricType, metricName, metricValue)
 				if err != nil {
 					fmt.Printf("Ошибка при отправке метрики %s: %s\n", metricName, err)
-				} else {
+					// } else {
 					// fmt.Printf("Метрика %s успешно отправлена \n", metricName)
 				}
 			}
