@@ -71,19 +71,6 @@ func sendMetric(metricType string, metricName string, metricValue interface{}) e
 	client := &http.Client{}
 	_, err = client.Do(req)
 
-	// resp, err := client.Do(req)
-	// // ===============
-	// fmt.Printf("Status: %s\r\n", resp.Status)
-	// fmt.Printf("Header ===============\r\n")
-	// for k, v := range resp.Header {
-	// 	fmt.Printf("%s: %v\r\n", k, v)
-	// }
-	// fmt.Printf("ContentLength: %v\n", resp.ContentLength)
-	// fmt.Printf("Body: %v\n", resp.Body)
-	// fmt.Printf("Query parameters ===============\r\n")
-
-	// // ===============
-
 	if err != nil {
 		fmt.Println("Error sending metric:", err)
 		return err
