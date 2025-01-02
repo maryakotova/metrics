@@ -69,13 +69,13 @@ func sendMetric(metricType string, metricName string, metricValue interface{}) e
 	req.Header.Set("Content-Type", "text/plain")
 
 	client := &http.Client{}
-	_, err = client.Do(req)
-	defer req.Body.Close()
+	resp, err := client.Do(req)
 
 	if err != nil {
 		fmt.Println("Error sending metric:", err)
 		return err
 	}
+	defer resp.Body.Close()
 	fmt.Printf("Sent metric: %s/%s/%v\n", metricType, metricName, metricValue)
 	return err
 }
