@@ -65,17 +65,17 @@ func (ms *MemStorage) GetCounter(key string) (value int64, err error) {
 }
 
 func (ms *MemStorage) GetAllGauge() map[string]float64 {
-	return ms.gauge[]
-} 
+	return ms.gauge
+}
 
 func (ms *MemStorage) GetAllCounter() map[string]int64 {
-	return ms.counter[]
-} 
-
-func (ms *MemStorage) GetAll() result map[string]interface {
-	result = ms.gauge[]
-	for key, value := range ms.counter {
-		result[key] = value
-	}
-	return
+	return ms.counter
 }
+
+// func (ms *MemStorage) GetAll() result map[string]interface{} {
+// 	result = ms.gauge
+// 	for key, value := range ms.counter {
+// 		result[key] = value
+// 	}
+// 	return
+// }

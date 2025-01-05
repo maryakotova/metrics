@@ -3,9 +3,19 @@ package handlers
 import (
 	"net/http"
 	"strings"
+
+	. "github.com/maryakotova/metrics/internal/storage"
 )
 
-func (ms *MemStorage) handleMetricUpdate(res http.ResponseWriter, req *http.Request) {
+type Server struct {
+	metrics MemStorage
+}
+
+func NewServer(metrics *MemStorage) *Server {
+	return &Server{metrics: *metrics}
+}
+
+func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		// http.Error(res, "Невозможно обновить метрику(недостаточно параметров)", http.StatusMethodNotAllowed)
 		res.WriteHeader(http.StatusMethodNotAllowed)
@@ -36,20 +46,20 @@ func (ms *MemStorage) handleMetricUpdate(res http.ResponseWriter, req *http.Requ
 
 	switch metricType {
 	case "gauge":
-		gaugeValue, err := ms.StrValueToFloat(metricValue)
+		gaugeValue, err := server.metrics.StrValueToFloat(metricValue)
 		if err != nil {
 			http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
 			return
 		}
-		ms.SetGauge(metricName, gaugeValue)
+		server.metrics.SetGauge(metricName, gaugeValue)
 
 	case "counter":
-		counterValue, err := ms.StrValueToInt(metricValue)
+		counterValue, err := server.metrics.StrValueToInt(metricValue)
 		if err != nil {
 			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
 			return
 		}
-		ms.SetCounter(metricName, counterValue)
+		server.metrics.SetCounter(metricName, counterValue)
 
 	default:
 		http.Error(res, "Неверный формат для обновления метрик (неверное имя)", http.StatusBadRequest)
