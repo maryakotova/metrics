@@ -1,48 +1,9 @@
-package main
+package handlers
 
 import (
 	"net/http"
 	"strings"
-
-	. "github.com/maryakotova/metrics/internal/handlers"
-	. "github.com/maryakotova/metrics/internal/storage"
 )
-
-// type MemStorage struct {
-// 	gauge   map[string]float64
-// 	counter map[string]int64
-// }
-
-// func NewMemStorage() *MemStorage {
-// 	return &MemStorage{
-// 		gauge:   make(map[string]float64),
-// 		counter: make(map[string]int64),
-// 	}
-// }
-
-// func (ms *MemStorage) SetGauge(key string, value float64) {
-// 	ms.gauge[key] = value
-// }
-
-// func (ms *MemStorage) StrValueToFloat(str string) (value float64, err error) {
-// 	value, err = strconv.ParseFloat(str, 64)
-// 	return
-// }
-
-// func (ms *MemStorage) StrValueToInt(str string) (value int64, err error) {
-// 	value, err = strconv.ParseInt(str, 10, 64)
-// 	return
-// }
-
-// func (ms *MemStorage) SetCounter(key string, value int64) {
-// 	_, ok := ms.counter[key]
-// 	if ok {
-// 		ms.counter[key] += value
-
-// 	} else {
-// 		ms.counter[key] = value
-// 	}
-// }
 
 func (ms *MemStorage) handleMetricUpdate(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
@@ -97,23 +58,4 @@ func (ms *MemStorage) handleMetricUpdate(res http.ResponseWriter, req *http.Requ
 
 	res.WriteHeader(http.StatusOK)
 
-}
-
-// func handleBasic(res http.ResponseWriter, req *http.Request) {
-// 	http.Error(res, "Неверная ссылка для обновления метрики", http.StatusNotFound)
-// }
-
-func main() {
-
-	memStorage := NewMemStorage()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/update/`, memStorage.handleMetricUpdate)
-	// mux.HandleFunc(`//`, memStorage.handleMetricUpdate)
-	// mux.HandleFunc(`/`, handleBasic)
-
-	err := http.ListenAndServe(`:8080`, mux)
-	if err != nil {
-		panic(err)
-	}
 }
