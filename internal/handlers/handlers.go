@@ -1,16 +1,56 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
+	"text/template"
 )
+
+const tpl = `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="UTF-8">
+			<title>Метрики</title>
+		</head>
+		<body>
+			<h1>Метрики типа Counter</h1>
+			<table border="1">
+				<tr>
+					<th>Key</th>
+					<th>Value</th>
+				</tr>
+				{{range $key, $value := .IntMap}}
+					<tr>
+						<td>{{$key}}</td>
+						<td>{{$value}}</td>
+					</tr>
+				{{end}}
+			</table>
+
+			<h1>Метрики типа Gauge</h1>
+			<table border="1">
+				<tr>
+					<th>Key</th>
+					<th>Value</th>
+				</tr>
+				{{range $key, $value := .FloatMap}}
+					<tr>
+						<td>{{$key}}</td>
+						<td>{{$value}}</td>
+					</tr>
+				{{end}}
+			</table>
+		</body>
+		</html>
+		`
 
 type DataStorage interface {
 	SetGauge(key string, value string) (err error)
 	SetCounter(key string, value string) (err error)
 	GetAll() map[string]interface{}
+	GetAllGauge() map[string]float64
+	GetAllCounter() map[string]int64
 	GetGauge(key string) (value float64, err error)
 	GetCounter(key string) (value int64, err error)
 }
@@ -94,14 +134,33 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 
 func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
 
-	res.Header().Set("Content-Type", "text/plain")
+	res.Header().Set("Content-Type", "text/html")
 
-	metricsList := server.metrics.GetAll()
-
-	var sb strings.Builder
-	for key, value := range metricsList {
-		sb.WriteString(fmt.Sprintf("%s: %v\n", key, value))
+	data := struct {
+		IntMap   map[string]int64
+		FloatMap map[string]float64
+	}{
+		IntMap:   server.metrics.GetAllCounter(),
+		FloatMap: server.metrics.GetAllGauge(),
 	}
 
-	res.Write([]byte(sb.String()))
+	tmpl, err := template.New("webpage").Parse(tpl)
+	if err != nil {
+		http.Error(res, "Error parsing template", http.StatusInternalServerError)
+		return
+	}
+
+	err = tmpl.Execute(res, data)
+	if err != nil {
+		http.Error(res, "Error executing template", http.StatusInternalServerError)
+	}
 }
+
+// metricsList := server.metrics.GetAll()
+
+// var sb strings.Builder
+// for key, value := range metricsList {
+// 	sb.WriteString(fmt.Sprintf("%s: %v\n", key, value))
+// }
+
+// res.Write([]byte(sb.String()))

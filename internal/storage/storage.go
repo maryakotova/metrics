@@ -69,6 +69,7 @@ func (ms *MemStorage) SetCounter(key string, value string) (err error) {
 }
 
 func (ms *MemStorage) GetGauge(key string) (value float64, err error) {
+
 	value, ok := ms.gauge[key]
 	if !ok {
 		err = fmt.Errorf("значение метрики %s типа gauge не найдено", key)
@@ -84,13 +85,13 @@ func (ms *MemStorage) GetCounter(key string) (value int64, err error) {
 	return
 }
 
-// func (ms *MemStorage) GetAllGauge() map[string]float64 {
-// 	return ms.gauge
-// }
+func (ms *MemStorage) GetAllGauge() map[string]float64 {
+	return ms.gauge
+}
 
-// func (ms *MemStorage) GetAllCounter() map[string]int64 {
-// 	return ms.counter
-// }
+func (ms *MemStorage) GetAllCounter() map[string]int64 {
+	return ms.counter
+}
 
 func (ms *MemStorage) GetAll() map[string]interface{} {
 
