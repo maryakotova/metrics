@@ -5,6 +5,8 @@ import (
 
 	. "github.com/maryakotova/metrics/internal/handlers"
 	. "github.com/maryakotova/metrics/internal/storage"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // type MemStorage struct {
@@ -107,13 +109,16 @@ func main() {
 	memStorage := NewMemStorage()
 	server := NewServer(memStorage)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/update/`, server.HandleMetricUpdate)
-	// mux.HandleFunc(`//`, memStorage.handleMetricUpdate)
-	// mux.HandleFunc(`/`, handleBasic)
+	router := chi.NewRouter()
+	router.Use()
 
-	err := http.ListenAndServe(`:8080`, mux)
+	router.Get("/", server.HandleGetAllMetrics)
+	router.Get("/value/{metricType}/{metricName}", server.HandleGetOneMetric)
+	router.Post("/update/{metricType}/{metricName}/{metricValue}", server.HandleMetricUpdate)
+
+	err := http.ListenAndServe(":8080", router)
 	if err != nil {
 		panic(err)
 	}
+
 }
