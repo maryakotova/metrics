@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"net/http"
 
 	"github.com/maryakotova/metrics/internal/handlers"
@@ -10,6 +12,9 @@ import (
 )
 
 func main() {
+
+	netAddress := flag.String("a", "localhost:8080", "Адрес и порт для HTTP-сервера")
+	flag.Parse()
 
 	memStorage := storage.NewMemStorage()
 	server := handlers.NewServer(memStorage)
@@ -21,9 +26,11 @@ func main() {
 	router.Get("/value/{metricType}/{metricName}", server.HandleGetOneMetric)
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", server.HandleMetricUpdate)
 
-	err := http.ListenAndServe(":8080", router)
+	err := http.ListenAndServe(*netAddress, router)
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println("Running server on ", netAddress)
 
 }

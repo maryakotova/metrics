@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -8,10 +9,10 @@ import (
 	"time"
 )
 
-const (
-	pollInterval   int64 = 2
-	reportInterval int64 = 10
-)
+// const (
+// 	pollInterval   int64 = 2
+// 	reportInterval int64 = 10
+// )
 
 var pollCont int64 = 0
 
@@ -58,8 +59,8 @@ func collectMetrics() map[string]interface{} {
 
 }
 
-func sendMetric(metricType string, metricName string, metricValue interface{}) error {
-	url := fmt.Sprintf("http://localhost:8080/update/%s/%s/%v", metricType, metricName, metricValue)
+func sendMetric(serverAddress string, metricType string, metricName string, metricValue interface{}) error {
+	url := fmt.Sprintf("http://%s/update/%s/%s/%v", serverAddress, metricType, metricName, metricValue)
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		fmt.Println("Error creating request:", err)
@@ -82,15 +83,20 @@ func sendMetric(metricType string, metricName string, metricValue interface{}) e
 
 func main() {
 
+	serverAddress := flag.String("a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
+	reportInterval := flag.Int64("r", 10, "Частота отправки метрик на сервер")
+	pollInterval := flag.Int64("p", 2, "Частота опроса метрик из пакета runtime")
+	flag.Parse()
+
 	n := int64(0)
 
 	for {
-		time.Sleep(time.Duration(pollInterval) * time.Second)
-		n += pollInterval
+		time.Sleep(time.Duration(*pollInterval) * time.Second)
+		n += *pollInterval
 
 		metrics := collectMetrics()
 
-		if reportInterval == n {
+		if *reportInterval == n {
 			n = 0
 
 			for metricName, metricValue := range metrics {
@@ -100,7 +106,7 @@ func main() {
 				} else {
 					metricType = "gauge"
 				}
-				err := sendMetric(metricType, metricName, metricValue)
+				err := sendMetric(*serverAddress, metricType, metricName, metricValue)
 				if err != nil {
 					fmt.Printf("Ошибка при отправке метрики %s: %s\n", metricName, err)
 					// } else {
