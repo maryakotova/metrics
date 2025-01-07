@@ -1,3 +1,118 @@
 package main
 
-func main() {}
+import (
+	"flag"
+	"fmt"
+	"math/rand"
+	"net/http"
+	"runtime"
+	"time"
+)
+
+// const (
+// 	pollInterval   int64 = 2
+// 	reportInterval int64 = 10
+// )
+
+var pollCont int64 = 0
+
+func collectMetrics() map[string]interface{} {
+	memStats := new(runtime.MemStats)
+	runtime.ReadMemStats(memStats)
+
+	metrics := make(map[string]interface{})
+
+	metrics["Alloc"] = memStats.Alloc
+	metrics["BuckHashSys"] = memStats.BuckHashSys
+	metrics["Frees"] = memStats.Frees
+	metrics["GCCPUFraction"] = memStats.GCCPUFraction
+	metrics["GCSys"] = memStats.GCSys
+	metrics["HeapAlloc"] = memStats.HeapAlloc
+	metrics["HeapIdle"] = memStats.HeapIdle
+	metrics["HeapInuse"] = memStats.HeapInuse
+	metrics["HeapObjects"] = memStats.HeapObjects
+	metrics["HeapReleased"] = memStats.HeapReleased
+	metrics["HeapSys"] = memStats.HeapSys
+	metrics["LastGC"] = memStats.LastGC
+	metrics["Lookups"] = memStats.Lookups
+	metrics["MCacheInuse"] = memStats.MCacheInuse
+	metrics["MCacheSys"] = memStats.MCacheSys
+	metrics["MSpanInuse"] = memStats.MSpanInuse
+	metrics["MSpanSys"] = memStats.MSpanSys
+	metrics["Mallocs"] = memStats.Mallocs
+	metrics["NextGC"] = memStats.NextGC
+	metrics["NumForcedGC"] = memStats.NumForcedGC
+	metrics["NumGC"] = memStats.NumGC
+	metrics["OtherSys"] = memStats.OtherSys
+	metrics["PauseTotalNs"] = memStats.PauseTotalNs
+	metrics["StackInuse"] = memStats.StackInuse
+	metrics["StackSys"] = memStats.StackSys
+	metrics["Sys"] = memStats.Sys
+	metrics["TotalAlloc"] = memStats.TotalAlloc
+
+	pollCont++
+	metrics["PollCount"] = pollCont
+
+	metrics["RandomValue"] = rand.Float64()
+
+	return metrics
+
+}
+
+func sendMetric(serverAddress string, metricType string, metricName string, metricValue interface{}) error {
+	url := fmt.Sprintf("http://%s/update/%s/%s/%v", serverAddress, metricType, metricName, metricValue)
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		fmt.Println("Error creating request:", err)
+		return err
+	}
+
+	req.Header.Set("Content-Type", "text/plain")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		fmt.Println("Error sending metric:", err)
+		return err
+	}
+	defer resp.Body.Close()
+	fmt.Printf("Sent metric: %s/%s/%v\n", metricType, metricName, metricValue)
+	return err
+}
+
+func main() {
+
+	serverAddress := flag.String("a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
+	reportInterval := flag.Int64("r", 10, "Частота отправки метрик на сервер")
+	pollInterval := flag.Int64("p", 2, "Частота опроса метрик из пакета runtime")
+	flag.Parse()
+
+	n := int64(0)
+
+	for {
+		time.Sleep(time.Duration(*pollInterval) * time.Second)
+		n += *pollInterval
+
+		metrics := collectMetrics()
+
+		if *reportInterval == n {
+			n = 0
+
+			for metricName, metricValue := range metrics {
+				var metricType string
+				if metricName == "PollCount" {
+					metricType = "counter"
+				} else {
+					metricType = "gauge"
+				}
+				err := sendMetric(*serverAddress, metricType, metricName, metricValue)
+				if err != nil {
+					fmt.Printf("Ошибка при отправке метрики %s: %s\n", metricName, err)
+					// } else {
+					// fmt.Printf("Метрика %s успешно отправлена \n", metricName)
+				}
+			}
+		}
+	}
+}
