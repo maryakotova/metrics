@@ -58,13 +58,13 @@ func (ms *MemStorage) SetCounter(key string, value string) (err error) {
 		return err
 	}
 
-	_, ok := ms.counter[key]
-	if ok {
-		ms.counter[key] += intValue
+	// _, ok := ms.counter[key]
+	// if ok {
+	// 	ms.counter[key] += intValue
 
-	} else {
-		ms.counter[key] = intValue
-	}
+	// } else {
+	ms.counter[key] = intValue
+	// }
 	return
 }
 
