@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -9,12 +8,7 @@ import (
 	"time"
 )
 
-// const (
-// 	pollInterval   int64 = 2
-// 	reportInterval int64 = 10
-// )
-
-var pollCont int64 = 0
+var pollCount int64 = 0
 
 func collectMetrics() map[string]interface{} {
 	memStats := new(runtime.MemStats)
@@ -50,16 +44,15 @@ func collectMetrics() map[string]interface{} {
 	metrics["Sys"] = memStats.Sys
 	metrics["TotalAlloc"] = memStats.TotalAlloc
 
-	pollCont++
-	metrics["PollCount"] = pollCont
+	pollCount++
+	metrics["PollCount"] = pollCount
 
 	metrics["RandomValue"] = rand.Float64()
 
 	return metrics
-
 }
 
-func sendMetric(serverAddress string, metricType string, metricName string, metricValue interface{}) error {
+func sendMetric(metricType string, metricName string, metricValue interface{}) error {
 	url := fmt.Sprintf("http://%s/update/%s/%s/%v", serverAddress, metricType, metricName, metricValue)
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -83,20 +76,17 @@ func sendMetric(serverAddress string, metricType string, metricName string, metr
 
 func main() {
 
-	serverAddress := flag.String("a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
-	reportInterval := flag.Int64("r", 10, "Частота отправки метрик на сервер")
-	pollInterval := flag.Int64("p", 2, "Частота опроса метрик из пакета runtime")
-	flag.Parse()
+	parseFlags()
 
 	n := int64(0)
 
 	for {
-		time.Sleep(time.Duration(*pollInterval) * time.Second)
-		n += *pollInterval
+		time.Sleep(time.Duration(pollInterval) * time.Second)
+		n += pollInterval
 
 		metrics := collectMetrics()
 
-		if *reportInterval == n {
+		if reportInterval == n {
 			n = 0
 
 			for metricName, metricValue := range metrics {
@@ -106,11 +96,9 @@ func main() {
 				} else {
 					metricType = "gauge"
 				}
-				err := sendMetric(*serverAddress, metricType, metricName, metricValue)
+				err := sendMetric(metricType, metricName, metricValue)
 				if err != nil {
 					fmt.Printf("Ошибка при отправке метрики %s: %s\n", metricName, err)
-					// } else {
-					// fmt.Printf("Метрика %s успешно отправлена \n", metricName)
 				}
 			}
 		}
