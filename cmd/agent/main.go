@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var pollCount int64 = 0
+var pollCount int64
 
 func collectMetrics() map[string]interface{} {
 	memStats := new(runtime.MemStats)
@@ -88,6 +88,7 @@ func main() {
 
 		if reportInterval == n {
 			n = 0
+			pollCount = 0
 
 			for metricName, metricValue := range metrics {
 				var metricType string
