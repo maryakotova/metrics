@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+var (
+	serverAddress  string
+	pollInterval   int64
+	reportInterval int64
+)
+
 var pollCount int64
 
 func collectMetrics() map[string]interface{} {

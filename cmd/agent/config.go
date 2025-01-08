@@ -3,21 +3,14 @@ package main
 import (
 	"flag"
 	"log"
-	"time"
 
 	"github.com/caarlos0/env/v6"
 )
 
-var (
-	serverAddress  string
-	pollInterval   int64
-	reportInterval int64
-)
-
 type Config struct {
-	ServerAddress  string        `env:"ADDRESS"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL"`
+	ServerAddress  string `env:"ADDRESS"`
+	ReportInterval int64  `env:"REPORT_INTERVAL"`
+	PollInterval   int64  `env:"POLL_INTERVAL"`
 }
 
 func parseFlags() {
@@ -38,10 +31,10 @@ func parseFlags() {
 		serverAddress = cfg.ServerAddress
 	}
 	if cfg.ReportInterval != 0 {
-		reportInterval = int64(cfg.ReportInterval.Seconds())
+		reportInterval = cfg.ReportInterval
 	}
 	if cfg.PollInterval != 0 {
-		pollInterval = int64(cfg.PollInterval.Seconds())
+		pollInterval = cfg.PollInterval
 	}
 
 }

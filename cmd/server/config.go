@@ -10,7 +10,6 @@ import (
 var netAddress string
 
 type Config struct {
-	// User          string `env:"USERNAME"`
 	ServerAddress string `env:"ADDRESS"`
 }
 
@@ -18,8 +17,6 @@ func parseFlags() {
 
 	var cfg Config
 	err := env.Parse(&cfg)
-
-	// fmt.Printf("USER: %s, Server: %s", cfg.User, cfg.ServerAddress)
 
 	if err != nil {
 		log.Fatal(err)
