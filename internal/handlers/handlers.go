@@ -6,44 +6,7 @@ import (
 	"text/template"
 )
 
-const tpl = `
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<meta charset="UTF-8">
-			<title>Метрики</title>
-		</head>
-		<body>
-			<h1>Метрики типа Counter</h1>
-			<table border="1">
-				<tr>
-					<th>Key</th>
-					<th>Value</th>
-				</tr>
-				{{range $key, $value := .IntMap}}
-					<tr>
-						<td>{{$key}}</td>
-						<td>{{$value}}</td>
-					</tr>
-				{{end}}
-			</table>
-
-			<h1>Метрики типа Gauge</h1>
-			<table border="1">
-				<tr>
-					<th>Key</th>
-					<th>Value</th>
-				</tr>
-				{{range $key, $value := .FloatMap}}
-					<tr>
-						<td>{{$key}}</td>
-						<td>{{$value}}</td>
-					</tr>
-				{{end}}
-			</table>
-		</body>
-		</html>
-		`
+const tplPath string = "templates/metrics.html"
 
 type DataStorage interface {
 	SetGauge(key string, value string) (err error)
@@ -144,7 +107,7 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 		FloatMap: server.metrics.GetAllGauge(),
 	}
 
-	tmpl, err := template.New("webpage").Parse(tpl)
+	tmpl, err := template.ParseFiles(tplPath)
 	if err != nil {
 		http.Error(res, "Error parsing template", http.StatusInternalServerError)
 		return
@@ -155,12 +118,3 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 		http.Error(res, "Error executing template", http.StatusInternalServerError)
 	}
 }
-
-// metricsList := server.metrics.GetAll()
-
-// var sb strings.Builder
-// for key, value := range metricsList {
-// 	sb.WriteString(fmt.Sprintf("%s: %v\n", key, value))
-// }
-
-// res.Write([]byte(sb.String()))
