@@ -27,6 +27,11 @@ func NewServer(metrics DataStorage) *Server {
 }
 
 func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	res.Header().Set("Content-Type", "text/plain")
 
 	metricType := req.PathValue("metricType")
@@ -62,6 +67,10 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 }
 
 func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 
 	res.Header().Set("Content-Type", "text/plain")
 
@@ -96,6 +105,10 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 }
 
 func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 
 	res.Header().Set("Content-Type", "text/html")
 
@@ -117,4 +130,6 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 	if err != nil {
 		http.Error(res, "Error executing template", http.StatusInternalServerError)
 	}
+
+	res.WriteHeader(http.StatusOK)
 }
