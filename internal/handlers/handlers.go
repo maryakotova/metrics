@@ -73,7 +73,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 			return
 		}
 
-	case "text/plain":
+	case "text/plain", "":
 		metricType := req.PathValue("metricType")
 		metricName := req.PathValue("metricName")
 		metricValue := req.PathValue("metricValue")
