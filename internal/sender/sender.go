@@ -64,7 +64,8 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 		return err
 	}
 
-	url := fmt.Sprintf("http://%s/update/%s/%s/%v", serverAddress, metricType, metricName, metricValue)
+	// url := fmt.Sprintf("http://%s/update/%s/%s/%v", serverAddress, metricType, metricName, metricValue)
+	url := fmt.Sprintf("http://%s/update/", serverAddress)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
