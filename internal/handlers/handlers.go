@@ -83,7 +83,12 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 }
 
 func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "text/plain")
+	if req.Method != http.MethodPost {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	res.Header().Set("Content-Type", "Content-Type: application/json")
 
 	metricType := req.PathValue("metricType")
 	metricName := req.PathValue("metricName")
@@ -92,6 +97,11 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	if metricName == "" {
 		http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
 		return
+	}
+
+	responce := models.Metrics{
+		ID:    metricName,
+		MType: metricType,
 	}
 
 	switch metricType {
@@ -106,6 +116,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 			http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
 			return
 		}
+		responce.Value = &value
 
 	case "counter":
 		value, err := strconv.ParseInt(metricValue, 10, 64)
@@ -118,9 +129,16 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
 			return
 		}
+		responce.Delta = &value
 
 	default:
 		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+		return
+	}
+
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(responce); err != nil {
+		http.Error(res, "Ошибка при заполнении ответа", http.StatusInternalServerError)
 		return
 	}
 
@@ -177,6 +195,10 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 }
 
 func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 
 	res.Header().Set("Content-Type", "text/plain")
 
