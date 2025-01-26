@@ -37,7 +37,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 
 	var responce models.Metrics
 
-	contentType := req.Header.Get("Content-Type")
+	// contentType := req.Header.Get("Content-Type")
 	// switch contentType {
 	// case "application/json":
 	// 	var request models.Metrics
