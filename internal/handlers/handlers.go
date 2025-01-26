@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"text/template"
 
 	"github.com/maryakotova/metrics/internal/models"
@@ -39,27 +40,66 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	var request models.Metrics
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&request); err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		return
-	}
 
-	if request.ID == "" {
-		http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
-		return
-	}
+		metricType := req.PathValue("metricType")
+		metricName := req.PathValue("metricName")
+		metricValue := req.PathValue("metricValue")
 
-	switch request.MType {
-	case "gauge":
-		if err := server.metrics.SetGauge(request.ID, *request.Value); err != nil {
-			http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
+		if metricName == "" {
+			http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
+			return
 		}
-	case "counter":
-		if err := server.metrics.SetCounter(request.ID, *request.Delta); err != nil {
-			http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
+
+		switch metricType {
+		case "gauge":
+			value, err := strconv.ParseFloat(metricValue, 64)
+			if err != nil {
+				http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
+				return
+			}
+			err = server.metrics.SetGauge(metricName, value)
+			if err != nil {
+				http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
+				return
+			}
+
+		case "counter":
+			value, err := strconv.ParseInt(metricValue, 10, 64)
+			if err != nil {
+				http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
+				return
+			}
+			err = server.metrics.SetCounter(metricName, value)
+			if err != nil {
+				http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
+				return
+			}
+
+		default:
+			http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+			return
 		}
-	default:
-		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
-		return
+
+	} else {
+
+		if request.ID == "" {
+			http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
+			return
+		}
+
+		switch request.MType {
+		case "gauge":
+			if err := server.metrics.SetGauge(request.ID, *request.Value); err != nil {
+				http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
+			}
+		case "counter":
+			if err := server.metrics.SetCounter(request.ID, *request.Delta); err != nil {
+				http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
+			}
+		default:
+			http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+			return
+		}
 	}
 
 	res.WriteHeader(http.StatusOK)
