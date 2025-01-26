@@ -35,42 +35,99 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
-	res.Header().Set("Content-Type", "Content-Type: application/json")
+	var responce models.Metrics
 
-	var request models.Metrics
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&request); err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if request.ID == "" {
-		http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
-		return
-	}
-
-	responce := models.Metrics{
-		ID:    request.ID,
-		MType: request.MType,
-	}
-
-	switch request.MType {
-	case "gauge":
-		if err := server.metrics.SetGauge(request.ID, *request.Value); err != nil {
-			http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
+	contentType := req.Header.Get("Content-Type")
+	switch contentType {
+	case "application/json":
+		var request models.Metrics
+		dec := json.NewDecoder(req.Body)
+		if err := dec.Decode(&request); err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		responce.Value = request.Value
-	case "counter":
-		if err := server.metrics.SetCounter(request.ID, *request.Delta); err != nil {
-			http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
+
+		if request.ID == "" {
+			http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
 			return
 		}
-		responce.Delta = request.Delta
+
+		responce.ID = request.ID
+		responce.MType = request.MType
+
+		switch request.MType {
+		case "gauge":
+			if err := server.metrics.SetGauge(request.ID, *request.Value); err != nil {
+				http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
+				return
+			}
+			responce.Value = request.Value
+		case "counter":
+			if err := server.metrics.SetCounter(request.ID, *request.Delta); err != nil {
+				http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
+				return
+			}
+			responce.Delta = request.Delta
+		default:
+			http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+			return
+		}
+
+	case "text/plain":
+		metricType := req.PathValue("metricType")
+		metricName := req.PathValue("metricName")
+		metricValue := req.PathValue("metricValue")
+
+		if metricName == "" {
+			http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
+			return
+		}
+
+		// responce := models.Metrics{
+		// 	ID:    metricName,
+		// 	MType: metricType,
+		// }
+
+		responce.ID = metricName
+		responce.MType = metricType
+
+		switch metricType {
+		case "gauge":
+			value, err := strconv.ParseFloat(metricValue, 64)
+			if err != nil {
+				http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
+				return
+			}
+			err = server.metrics.SetGauge(metricName, value)
+			if err != nil {
+				http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
+				return
+			}
+			responce.Value = &value
+
+		case "counter":
+			value, err := strconv.ParseInt(metricValue, 10, 64)
+			if err != nil {
+				http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
+				return
+			}
+			err = server.metrics.SetCounter(metricName, value)
+			if err != nil {
+				http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
+				return
+			}
+			responce.Delta = &value
+
+		default:
+			http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+			return
+		}
 	default:
-		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+		http.Error(res, "Неверный формат для обновления метрик (Content-Type)", http.StatusBadRequest)
 		return
 	}
+
+	res.Header().Set("Content-Type", "Content-Type: application/json")
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(responce); err != nil {
