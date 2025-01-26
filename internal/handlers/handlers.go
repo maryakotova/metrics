@@ -35,7 +35,6 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
-	var responce models.Metrics
 	var request models.Metrics
 
 	dec := json.NewDecoder(req.Body)
@@ -49,8 +48,10 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
-	responce.ID = request.ID
-	responce.MType = request.MType
+	responce := models.Metrics{
+		ID:    request.ID,
+		MType: request.MType,
+	}
 
 	switch request.MType {
 	case "gauge":
