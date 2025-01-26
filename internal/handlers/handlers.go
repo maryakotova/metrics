@@ -29,7 +29,7 @@ func NewServer(metrics DataStorage) *Server {
 	return &Server{metrics: metrics}
 }
 
-func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Request) {
+func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -40,73 +40,79 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	var request models.Metrics
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&request); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-		metricType := req.PathValue("metricType")
-		metricName := req.PathValue("metricName")
-		metricValue := req.PathValue("metricValue")
+	if request.ID == "" {
+		http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
+		return
+	}
 
-		if metricName == "" {
-			http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
-			return
+	switch request.MType {
+	case "gauge":
+		if err := server.metrics.SetGauge(request.ID, *request.Value); err != nil {
+			http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
 		}
-
-		switch metricType {
-		case "gauge":
-			value, err := strconv.ParseFloat(metricValue, 64)
-			if err != nil {
-				http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
-				return
-			}
-			err = server.metrics.SetGauge(metricName, value)
-			if err != nil {
-				http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
-				return
-			}
-
-		case "counter":
-			value, err := strconv.ParseInt(metricValue, 10, 64)
-			if err != nil {
-				http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
-				return
-			}
-			err = server.metrics.SetCounter(metricName, value)
-			if err != nil {
-				http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
-				return
-			}
-
-		default:
-			http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
-			return
+	case "counter":
+		if err := server.metrics.SetCounter(request.ID, *request.Delta); err != nil {
+			http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
 		}
-
-	} else {
-
-		if request.ID == "" {
-			http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
-			return
-		}
-
-		switch request.MType {
-		case "gauge":
-			if err := server.metrics.SetGauge(request.ID, *request.Value); err != nil {
-				http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
-			}
-		case "counter":
-			if err := server.metrics.SetCounter(request.ID, *request.Delta); err != nil {
-				http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
-			}
-		default:
-			http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
-			return
-		}
+	default:
+		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+		return
 	}
 
 	res.WriteHeader(http.StatusOK)
 
 }
 
-func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Request) {
+func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/plain")
+
+	metricType := req.PathValue("metricType")
+	metricName := req.PathValue("metricName")
+	metricValue := req.PathValue("metricValue")
+
+	if metricName == "" {
+		http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
+		return
+	}
+
+	switch metricType {
+	case "gauge":
+		value, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
+			return
+		}
+		err = server.metrics.SetGauge(metricName, value)
+		if err != nil {
+			http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
+			return
+		}
+
+	case "counter":
+		value, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
+			return
+		}
+		err = server.metrics.SetCounter(metricName, value)
+		if err != nil {
+			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
+			return
+		}
+
+	default:
+		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+}
+
+func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -153,6 +159,40 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 	}
 	res.WriteHeader(http.StatusOK)
 
+}
+
+func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Request) {
+
+	res.Header().Set("Content-Type", "text/plain")
+
+	// switch chi.URLParam(req, "type") { !!!Почему не работает??????
+	switch req.PathValue("metricType") {
+	case "gauge":
+		metricValue, err := server.metrics.GetGauge(req.PathValue("metricName"))
+		if err != nil {
+			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
+			return
+		}
+		res.WriteHeader(http.StatusOK)
+		res.Write([]byte(strconv.FormatFloat(metricValue, 'f', -1, 64)))
+
+	case "counter":
+		metricValue, err := server.metrics.GetCounter(req.PathValue("metricName"))
+		if err != nil {
+			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
+			return
+		}
+		res.WriteHeader(http.StatusOK)
+		res.Write([]byte(strconv.FormatInt(metricValue, 10)))
+
+	case "":
+		http.Error(res, "Тип метрики обязателен для заполнения", http.StatusBadRequest)
+		return
+
+	default:
+		http.Error(res, "Указанный тип метрики не известен", http.StatusNotFound)
+		return
+	}
 }
 
 func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
