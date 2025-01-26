@@ -49,17 +49,32 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
+	responce := models.Metrics{
+		ID:    request.ID,
+		MType: request.MType,
+	}
+
 	switch request.MType {
 	case "gauge":
 		if err := server.metrics.SetGauge(request.ID, *request.Value); err != nil {
 			http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
+			return
 		}
+		responce.Value = request.Value
 	case "counter":
 		if err := server.metrics.SetCounter(request.ID, *request.Delta); err != nil {
 			http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
+			return
 		}
+		responce.Delta = request.Delta
 	default:
 		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+		return
+	}
+
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(responce); err != nil {
+		http.Error(res, "Ошибка при заполнении ответа", http.StatusInternalServerError)
 		return
 	}
 

@@ -74,12 +74,12 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 
 	defer resp.Body.Close()
 
-	switch metricType {
-	case "gauge":
-		fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, floatValue, *metricForSend.Value, resp.Status)
-	case "counter":
-		fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, intValue, *metricForSend.Delta, resp.Status)
-	}
+	// switch metricType {
+	// case "gauge":
+	// 	fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, floatValue, *metricForSend.Value, resp.Status)
+	// case "counter":
+	// 	fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, intValue, *metricForSend.Delta, resp.Status)
+	// }
 
 	return nil
 
