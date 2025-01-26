@@ -26,9 +26,9 @@ func main() {
 
 	router.Get("/", logger.WithLogging(server.HandleGetAllMetrics))
 	router.Get("/value/{metricType}/{metricName}", logger.WithLogging(server.HandleGetOneMetric))
-	router.Post("/value/", logger.WithLogging(server.HandleGetOneMetricViaJSON))
+	router.Post("/value", logger.WithLogging(server.HandleGetOneMetricViaJSON))
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(server.HandleMetricUpdate))
-	router.Post("/update/", logger.WithLogging(server.HandleMetricUpdateViaJSON))
+	router.Post("/update", logger.WithLogging(server.HandleMetricUpdateViaJSON))
 
 	err := http.ListenAndServe(netAddress, router)
 	if err != nil {
