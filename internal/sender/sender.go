@@ -86,7 +86,7 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 		return err
 	}
 
-	request.Header.Set("Accept-Encoding", "gzip")
+	//request.Header.Set("Accept-Encoding", "gzip")
 	request.Header.Set("Content-Encoding", "gzip")
 
 	resp, err := http.DefaultClient.Do(request)
