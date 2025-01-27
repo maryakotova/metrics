@@ -86,8 +86,8 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 		return err
 	}
 
-	//request.Header.Set("Accept-Encoding", "gzip")
 	request.Header.Set("Content-Encoding", "gzip")
+	request.Header.Set("Accept-Encoding", "")
 
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
@@ -97,12 +97,12 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 
 	defer resp.Body.Close()
 
-	switch metricType {
-	case "gauge":
-		fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, floatValue, *metricForSend.Value, resp.Status)
-	case "counter":
-		fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, intValue, *metricForSend.Delta, resp.Status)
-	}
+	// switch metricType {
+	// case "gauge":
+	// 	fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, floatValue, *metricForSend.Value, resp.Status)
+	// case "counter":
+	// 	fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, intValue, *metricForSend.Delta, resp.Status)
+	// }
 
 	return nil
 

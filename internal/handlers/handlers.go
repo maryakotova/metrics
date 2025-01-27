@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"text/template"
@@ -80,6 +81,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 	}
 
 	res.WriteHeader(http.StatusOK)
+	fmt.Printf("Responce: %v\n", responce)
 }
 
 func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Request) {
@@ -191,6 +193,7 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 		return
 	}
 	res.WriteHeader(http.StatusOK)
+	fmt.Printf("Responce: %v\n", responce)
 
 }
 
