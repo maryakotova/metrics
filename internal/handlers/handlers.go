@@ -253,12 +253,14 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 
 	tmpl, err := template.ParseFiles(tplPath)
 	if err != nil {
+		fmt.Printf("ошибка в шаблоне 1")
 		http.Error(res, "Error parsing template", http.StatusInternalServerError)
 		return
 	}
 
 	err = tmpl.Execute(res, data)
 	if err != nil {
+		fmt.Printf("ошибка в шаблоне 2")
 		http.Error(res, "Error executing template", http.StatusInternalServerError)
 	}
 
