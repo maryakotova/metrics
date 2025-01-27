@@ -2,6 +2,7 @@ package sender
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -64,10 +65,31 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 		return err
 	}
 
-	// url := fmt.Sprintf("http://%s/update/%s/%s/%v", serverAddress, metricType, metricName, metricValue)
 	url := fmt.Sprintf("http://%s/update/", serverAddress)
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	buf := bytes.NewBuffer(nil)
+	gzip := gzip.NewWriter(buf)
+	_, err = gzip.Write([]byte(jsonData))
+	if err != nil {
+		fmt.Printf("Failed write data to compress temporary buffer: %v\n", err)
+		return err
+	}
+	err = gzip.Close()
+	if err != nil {
+		fmt.Printf("Failed compress data: %v", err)
+		return err
+	}
+
+	request, err := http.NewRequest("POST", url, bytes.NewBuffer(buf.Bytes()))
+	if err != nil {
+		fmt.Printf("Error sending request: %v\n", err)
+		return err
+	}
+
+	request.Header.Set("Accept-Encoding", "gzip")
+	request.Header.Set("Content-Encoding", "gzip")
+
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		fmt.Printf("Error sending request: %v\n", err)
 		return err
@@ -75,12 +97,12 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 
 	defer resp.Body.Close()
 
-	// switch metricType {
-	// case "gauge":
-	// 	fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, floatValue, *metricForSend.Value, resp.Status)
-	// case "counter":
-	// 	fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, intValue, *metricForSend.Delta, resp.Status)
-	// }
+	switch metricType {
+	case "gauge":
+		fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, floatValue, *metricForSend.Value, resp.Status)
+	case "counter":
+		fmt.Printf("Sent metric: %s/%s/%v -/%v, response status: %s\n", metricType, metricName, intValue, *metricForSend.Delta, resp.Status)
+	}
 
 	return nil
 
