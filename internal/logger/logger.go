@@ -1,13 +1,10 @@
 package logger
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/maryakotova/metrics/internal/models"
 	"go.uber.org/zap"
 )
 
@@ -74,15 +71,9 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 
 		duration := time.Since(start)
 
-		var request models.Metrics
-		dec := json.NewDecoder(r.Body)
-		dec.Decode(&request)
-		result := fmt.Sprintf("%v", request)
-
 		Log.Info("got incoming HTTP request",
 			zap.String("uri", r.RequestURI),
 			zap.String("method", r.Method),
-			zap.String("request", result),
 			zap.String("duration", duration.String()),
 			zap.String("status", strconv.Itoa(responseData.status)),
 			zap.String("size", strconv.Itoa(responseData.size)),
