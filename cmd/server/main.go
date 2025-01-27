@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/maryakotova/metrics/internal/handlers"
 	"github.com/maryakotova/metrics/internal/logger"
@@ -52,16 +53,16 @@ func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 		// 	defer cw.Close()
 		// }
 
-		// sendsGzip := strings.Contains(r.Header.Get("Content-Encoding"), "gzip")
-		// if sendsGzip {
-		// 	cr, err := newCompressReader(r.Body)
-		// 	if err != nil {
-		// 		w.WriteHeader(http.StatusInternalServerError)
-		// 		return
-		// 	}
-		// 	r.Body = cr
-		// 	defer cr.Close()
-		// }
+		sendsGzip := strings.Contains(r.Header.Get("Content-Encoding"), "gzip")
+		if sendsGzip {
+			cr, err := newCompressReader(r.Body)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			r.Body = cr
+			defer cr.Close()
+		}
 
 		h.ServeHTTP(ow, r)
 	}
