@@ -25,9 +25,9 @@ func main() {
 	router := chi.NewRouter()
 	router.Use()
 
-	router.Get("/", logger.WithLogging(server.HandleGetAllMetrics))
+	router.Get("/", logger.WithLogging(gzipMiddleware(server.HandleGetAllMetrics)))
 
-	router.Get("/value/{metricType}/{metricName}", logger.WithLogging(server.HandleGetOneMetric))
+	router.Get("/value/{metricType}/{metricName}", logger.WithLogging(gzipMiddleware(server.HandleGetOneMetric)))
 	router.Post("/value/", logger.WithLogging(gzipMiddleware(server.HandleGetOneMetricViaJSON)))
 
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdate)))
