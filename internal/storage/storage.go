@@ -1,10 +1,10 @@
 package storage
 
-// type MetricType string
-
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/maryakotova/metrics/internal/models"
 )
 
 const (
@@ -34,10 +34,6 @@ func (ms *MemStorage) SetGauge(key string, value float64) (err error) {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
 	}
-	// floatValue, err := ms.strValueToFloat(value)
-	// if err != nil {
-	// 	return err
-	// }
 
 	ms.gauge[key] = value
 	return
@@ -53,11 +49,6 @@ func (ms *MemStorage) SetCounter(key string, value int64) (err error) {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
 	}
-	// intValue, err := ms.strValueToInt(value)
-	// if err != nil {
-	// 	return err
-	// }
-
 	_, ok := ms.counter[key]
 	if ok {
 		ms.counter[key] += value
@@ -106,4 +97,28 @@ func (ms *MemStorage) GetAll() map[string]interface{} {
 	}
 
 	return allMetrics
+}
+
+func (ms *MemStorage) GetAllMetricsInJSON() []models.Metrics {
+
+	metrics := []models.Metrics{}
+
+	for key, value := range ms.gauge {
+
+		metric := models.Metrics{
+			ID:    key,
+			MType: "gauge",
+			Value: &value}
+		metrics = append(metrics, metric)
+	}
+
+	for key, value := range ms.counter {
+		metric := models.Metrics{
+			ID:    key,
+			MType: "counter",
+			Delta: &value}
+		metrics = append(metrics, metric)
+	}
+
+	return metrics
 }

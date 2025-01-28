@@ -3,7 +3,9 @@ package main
 import (
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/handlers"
 	"github.com/maryakotova/metrics/internal/logger"
 	"github.com/maryakotova/metrics/internal/storage"
@@ -19,8 +21,32 @@ func main() {
 		panic(err)
 	}
 
+	writer, err := filetransfer.NewFileWriter(filePath)
+	if err != nil {
+		panic(err)
+	}
+
 	memStorage := storage.NewMemStorage()
-	server := handlers.NewServer(memStorage)
+
+	var syncFileWrite bool
+	if interval == 0 {
+		syncFileWrite = true
+	} else {
+		ticker := time.NewTicker(time.Duration(interval) * time.Second)
+		defer ticker.Stop()
+
+		go func() {
+			for range ticker.C {
+				metrics := memStorage.GetAllMetricsInJSON()
+				writer.WriteMetrics(&metrics)
+			}
+
+		}()
+	}
+
+	server := handlers.NewServer(memStorage, syncFileWrite, writer)
+
+	UploadData(memStorage)
 
 	router := chi.NewRouter()
 	router.Use()
@@ -33,9 +59,17 @@ func main() {
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdate)))
 	router.Post("/update/", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdateViaJSON)))
 
-	err := http.ListenAndServe(netAddress, router)
+	err = http.ListenAndServe(netAddress, router)
 	if err != nil {
 		panic(err)
+	}
+
+	defer writer.Close()
+	if interval != 0 {
+		defer func() {
+			metrics := memStorage.GetAllMetricsInJSON()
+			writer.WriteMetrics(&metrics)
+		}()
 	}
 }
 

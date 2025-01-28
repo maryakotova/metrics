@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"text/template"
 
+	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/htmlconst"
 	"github.com/maryakotova/metrics/internal/models"
 )
@@ -21,14 +22,21 @@ type DataStorage interface {
 	GetAllCounter() map[string]int64
 	GetGauge(key string) (value float64, err error)
 	GetCounter(key string) (value int64, err error)
+	// GetAllMetricsInJSON() []models.Metrics
 }
 
 type Server struct {
-	metrics DataStorage
+	metrics       DataStorage
+	syncFileWrite bool
+	fileWriter    *filetransfer.FileWriter
 }
 
-func NewServer(metrics DataStorage) *Server {
-	return &Server{metrics: metrics}
+func NewServer(metrics DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter) *Server {
+	return &Server{
+		metrics:       metrics,
+		syncFileWrite: syncFileWrite,
+		fileWriter:    fileWriter,
+	}
 }
 
 func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *http.Request) {
@@ -83,6 +91,10 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 
 	res.WriteHeader(http.StatusOK)
 	fmt.Printf("Responce: %v\n", responce)
+
+	if server.syncFileWrite {
+		server.fileWriter.WriteMetric(&responce)
+	}
 }
 
 func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Request) {
@@ -146,6 +158,9 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	}
 
 	res.WriteHeader(http.StatusOK)
+	if server.syncFileWrite {
+		server.fileWriter.WriteMetric(&responce)
+	}
 }
 
 func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *http.Request) {
