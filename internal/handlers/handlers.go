@@ -7,47 +7,11 @@ import (
 	"strconv"
 	"text/template"
 
+	"github.com/maryakotova/metrics/internal/htmlconst"
 	"github.com/maryakotova/metrics/internal/models"
 )
 
-// const tplPath string = "templates/metrics.html"
-const tpl = `
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<meta charset="UTF-8">
-			<title>Метрики</title>
-		</head>
-		<body>
-			<h1>Метрики типа Counter</h1>
-			<table border="1">
-				<tr>
-					<th>Key</th>
-					<th>Value</th>
-				</tr>
-				{{range $key, $value := .IntMap}}
-					<tr>
-						<td>{{$key}}</td>
-						<td>{{$value}}</td>
-					</tr>
-				{{end}}
-			</table>
-			<h1>Метрики типа Gauge</h1>
-			<table border="1">
-				<tr>
-					<th>Key</th>
-					<th>Value</th>
-				</tr>
-				{{range $key, $value := .FloatMap}}
-					<tr>
-						<td>{{$key}}</td>
-						<td>{{$value}}</td>
-					</tr>
-				{{end}}
-			</table>
-		</body>
-		</html>
-		`
+const tplPath string = "templates/metrics.html"
 
 type DataStorage interface {
 	SetGauge(key string, value float64) (err error)
@@ -288,18 +252,15 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 		FloatMap: server.metrics.GetAllGauge(),
 	}
 
-	tmpl, err := template.New("webpage").Parse(tpl)
+	tmpl, err := template.ParseFiles(tplPath)
 	if err != nil {
-		http.Error(res, "Error parsing template", http.StatusInternalServerError)
-		return
+		fmt.Printf("ошибка в шаблоне: %s", err)
+		tmpl, err = template.New("webpage").Parse(htmlconst.Tpl)
+		if err != nil {
+			http.Error(res, "Error parsing template", http.StatusInternalServerError)
+			return
+		}
 	}
-
-	// tmpl, err := template.ParseFiles(tplPath)
-	// if err != nil {
-	// 	fmt.Printf("ошибка в шаблоне: %s", err)
-	// 	http.Error(res, "Error parsing template", http.StatusInternalServerError)
-	// 	return
-	// }
 
 	err = tmpl.Execute(res, data)
 	if err != nil {
