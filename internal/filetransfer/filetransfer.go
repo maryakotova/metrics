@@ -46,6 +46,7 @@ func (fr *FileReader) ReadMetrics() (metrics []*models.Metrics, err error) {
 		if err != nil {
 			return nil, err
 		}
+
 		metrics = append(metrics, &metric)
 	}
 
