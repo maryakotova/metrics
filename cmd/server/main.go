@@ -17,6 +17,9 @@ func main() {
 
 	parseFlags()
 
+	// signalChan := make(chan os.Signal, 1)
+	// signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
 	if err := logger.Initialize(""); err != nil {
 		panic(err)
 	}
@@ -64,13 +67,14 @@ func main() {
 		panic(err)
 	}
 
-	defer writer.Close()
-	if interval != 0 {
-		defer func() {
-			metrics := memStorage.GetAllMetricsInJSON()
-			writer.WriteMetrics(&metrics)
-		}()
-	}
+	// <-signalChan
+
+	// if interval != 0 {
+	// 	metrics := memStorage.GetAllMetricsInJSON()
+	// 	writer.WriteMetrics(&metrics)
+	// }
+	// writer.Close()
+	// os.Exit(0)
 }
 
 func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {

@@ -76,16 +76,34 @@ func (fw *FileWriter) Close() error {
 }
 
 func (fw *FileWriter) WriteMetrics(metrics *[]models.Metrics) error {
-	data, err := json.Marshal(metrics)
-	if err != nil {
-		return err
+
+	if len(*metrics) == 0 {
+		return nil
 	}
-	if _, err := fw.writer.Write(data); err != nil {
-		return err
+
+	for _, value := range *metrics {
+		data, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		if _, err := fw.writer.Write(data); err != nil {
+			return err
+		}
+		if err := fw.writer.WriteByte('\n'); err != nil {
+			return err
+		}
 	}
-	if err := fw.writer.WriteByte('\n'); err != nil {
-		return err
-	}
+
+	// data, err := json.Marshal(metrics)
+	// if err != nil {
+	// 	return err
+	// }
+	// if _, err := fw.writer.Write(data); err != nil {
+	// 	return err
+	// }
+	// if err := fw.writer.WriteByte('\n'); err != nil {
+	// 	return err
+	// }
 
 	return fw.writer.Flush()
 }
