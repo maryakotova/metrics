@@ -50,11 +50,11 @@ func (ms *MemStorage) SetCounter(key string, value int64) (err error) {
 		return
 	}
 	_, ok := ms.counter[key]
-	if !ok || ms.counter[key] > value {
-		ms.counter[key] = value
+	if ok {
+		ms.counter[key] += value
 
 	} else {
-		ms.counter[key] += value
+		ms.counter[key] = value
 	}
 	return
 }
