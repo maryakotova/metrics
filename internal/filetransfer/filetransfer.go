@@ -32,13 +32,21 @@ func (fr *FileReader) Close() error {
 }
 
 func (fr *FileReader) ReadMetrics() (metrics []*models.Metrics, err error) {
-	data, err := fr.reader.ReadBytes('\n')
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(data, metrics)
-	if err != nil {
-		return nil, err
+
+	for {
+		data, err := fr.reader.ReadBytes('\n')
+		if err != nil {
+			if err.Error() == "EOF" {
+				break
+			}
+			return nil, err
+		}
+		metric := models.Metrics{}
+		err = json.Unmarshal(data, &metric)
+		if err != nil {
+			return nil, err
+		}
+		metrics = append(metrics, &metric)
 	}
 
 	return metrics, nil

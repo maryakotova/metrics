@@ -21,12 +21,14 @@ func main() {
 		panic(err)
 	}
 
+	memStorage := storage.NewMemStorage()
+
+	UploadData(memStorage)
+
 	writer, err := filetransfer.NewFileWriter(filePath)
 	if err != nil {
 		panic(err)
 	}
-
-	memStorage := storage.NewMemStorage()
 
 	var syncFileWrite bool
 	if interval == 0 {
@@ -45,8 +47,6 @@ func main() {
 	}
 
 	server := handlers.NewServer(memStorage, syncFileWrite, writer)
-
-	UploadData(memStorage)
 
 	router := chi.NewRouter()
 	router.Use()
