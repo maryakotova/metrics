@@ -9,8 +9,7 @@ import (
 )
 
 type FileReader struct {
-	file *os.File
-	// decoder *json.Decoder
+	file   *os.File
 	reader *bufio.Reader
 }
 
@@ -21,8 +20,7 @@ func NewFileReader(filename string) (*FileReader, error) {
 	}
 
 	return &FileReader{
-		file: file,
-		// decoder: json.NewDecoder(file),
+		file:   file,
 		reader: bufio.NewReader(file),
 	}, nil
 }
@@ -54,8 +52,7 @@ func (fr *FileReader) ReadMetrics() (metrics []*models.Metrics, err error) {
 }
 
 type FileWriter struct {
-	file *os.File
-	// encoder *json.Encoder
+	file   *os.File
 	writer *bufio.Writer
 }
 
@@ -66,8 +63,7 @@ func NewFileWriter(filename string) (*FileWriter, error) {
 	}
 
 	return &FileWriter{
-		file: file,
-		// encoder: json.NewEncoder(file),
+		file:   file,
 		writer: bufio.NewWriter(file),
 	}, nil
 }
@@ -94,18 +90,6 @@ func (fw *FileWriter) WriteMetrics(metrics *[]models.Metrics) error {
 			return err
 		}
 	}
-
-	// data, err := json.Marshal(metrics)
-	// if err != nil {
-	// 	return err
-	// }
-	// if _, err := fw.writer.Write(data); err != nil {
-	// 	return err
-	// }
-	// if err := fw.writer.WriteByte('\n'); err != nil {
-	// 	return err
-	// }
-
 	return fw.writer.Flush()
 }
 

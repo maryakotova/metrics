@@ -11,7 +11,8 @@ import (
 	"github.com/maryakotova/metrics/internal/models"
 )
 
-const tplPath string = "./templates/metrics.html"
+// const tplPath string = "./templates/metrics.html"
+const tplPath string = "./metrics.html"
 
 type DataStorage interface {
 	SetGauge(key string, value float64) (err error)
