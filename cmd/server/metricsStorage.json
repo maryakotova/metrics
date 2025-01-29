@@ -34,3 +34,7 @@
 {"id":"PollCount","type":"counter","delta":572}
 {"id":"RandomValue","type":"gauge","value":123.456}
 {"id":"PollCount","type":"counter","delta":572}
+{"id":"RandomValue","type":"gauge","value":123.456}
+{"id":"PollCount","type":"counter","delta":572}
+{"id":"RandomValue","type":"gauge","value":123.456}
+{"id":"PollCount","type":"counter","delta":572}
