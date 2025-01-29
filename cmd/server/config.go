@@ -73,7 +73,7 @@ func UploadData(memStorage *storage.MemStorage) {
 			case "gauge":
 				memStorage.SetGauge(metric.ID, *metric.Value)
 			case "counter":
-				// memStorage.SetCounter(metric.ID, *metric.Delta)
+				memStorage.SetCounter(metric.ID, 0)
 			}
 		}
 	}
