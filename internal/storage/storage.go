@@ -59,6 +59,15 @@ func (ms *MemStorage) SetCounter(key string, value int64) (err error) {
 	return
 }
 
+func (ms *MemStorage) SetCounterFromFile(key string, value int64) (err error) {
+	if key == "" {
+		err = fmt.Errorf("имя метрики обязательно для заполнения")
+		return
+	}
+	ms.counter[key] = value
+	return
+}
+
 func (ms *MemStorage) GetGauge(key string) (value float64, err error) {
 
 	value, ok := ms.gauge[key]
