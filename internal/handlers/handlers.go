@@ -8,11 +8,10 @@ import (
 	"text/template"
 
 	"github.com/maryakotova/metrics/internal/filetransfer"
-	"github.com/maryakotova/metrics/internal/htmlconst"
 	"github.com/maryakotova/metrics/internal/models"
 )
 
-const tplPath string = "templates/metrics.html"
+const tplPath string = "./templates/metrics.html"
 
 type DataStorage interface {
 	SetGauge(key string, value float64) (err error)
@@ -270,16 +269,15 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 	tmpl, err := template.ParseFiles(tplPath)
 	if err != nil {
 		fmt.Printf("ошибка в шаблоне: %s", err)
-		tmpl, err = template.New("webpage").Parse(htmlconst.Tpl)
-		if err != nil {
-			http.Error(res, "Error parsing template", http.StatusInternalServerError)
-			return
-		}
+		// tmpl, err = template.New("webpage").Parse(htmlconst.Tpl)
+		// if err != nil {
+		http.Error(res, "Error parsing template", http.StatusInternalServerError)
+		return
+		// }
 	}
 
 	err = tmpl.Execute(res, data)
 	if err != nil {
-		fmt.Printf("ошибка в шаблоне: %s", err)
 		http.Error(res, "Error executing template", http.StatusInternalServerError)
 	}
 
