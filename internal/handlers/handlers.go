@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"text/template"
 
@@ -13,8 +12,6 @@ import (
 )
 
 const tplPath string = "./templates/metrics.html"
-
-// const tplPath string = "./metrics.html"
 
 type DataStorage interface {
 	SetGauge(key string, value float64) (err error)
@@ -269,16 +266,10 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 		FloatMap: server.metrics.GetAllGauge(),
 	}
 
-	absPath, _ := filepath.Abs(tplPath)
-	fmt.Printf("путь: %s", absPath)
-	tmpl, err := template.ParseFiles(absPath)
+	tmpl, err := template.ParseFiles(tplPath)
 	if err != nil {
-		fmt.Printf("ошибка в шаблоне: %s", err)
-		// tmpl, err = template.New("webpage").Parse(htmlconst.Tpl)
-		// if err != nil {
 		http.Error(res, "Error parsing template", http.StatusInternalServerError)
 		return
-		// }
 	}
 
 	err = tmpl.Execute(res, data)
