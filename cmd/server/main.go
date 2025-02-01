@@ -3,13 +3,13 @@ package main
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/handlers"
 	"github.com/maryakotova/metrics/internal/logger"
 	"github.com/maryakotova/metrics/internal/middleware"
 	"github.com/maryakotova/metrics/internal/storage"
-	"github.com/maryakotova/metrics/internal/worker"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -40,11 +40,32 @@ func main() {
 	if interval == 0 {
 		syncFileWrite = true
 	} else {
-		task := func() {
-			metrics := memStorage.GetAllMetricsInJSON()
-			writer.WriteMetrics(&metrics)
-		}
-		worker.InitPeriodicFunc(interval, task)
+		// task := func() {
+		// 	metrics := memStorage.GetAllMetricsInJSON()
+		// 	writer.WriteMetrics(&metrics)
+		// }
+		// worker.InitPeriodicFunc(interval, task)
+
+		// ticker := time.NewTicker(time.Duration(interval) * time.Second)
+		// defer ticker.Stop()
+
+		// task := func() {
+		// 	metrics := memStorage.GetAllMetricsInJSON()
+		// 	writer.WriteMetrics(&metrics)
+		// }
+
+		// for range ticker.C {
+		// 	task()
+		// }
+
+		ticker := time.NewTicker(time.Duration(interval) * time.Second)
+		defer ticker.Stop()
+		go func() {
+			for range ticker.C {
+				metrics := memStorage.GetAllMetricsInJSON()
+				writer.WriteMetrics(&metrics)
+			}
+		}()
 	}
 
 	server := handlers.NewServer(memStorage, syncFileWrite, writer)

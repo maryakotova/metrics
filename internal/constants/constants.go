@@ -1,6 +1,7 @@
 package constants
 
 const (
-	Gauge   = "gauge"
-	Counter = "counter"
+	Gauge     = "gauge"
+	Counter   = "counter"
+	PollCount = "PollCount"
 )
