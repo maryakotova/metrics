@@ -2,14 +2,10 @@ package storage
 
 import (
 	"fmt"
-	"strconv"
 
+	"github.com/maryakotova/metrics/internal/constants"
+	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/models"
-)
-
-const (
-	Gauge   string = "gauge"
-	Counter string = "counter"
 )
 
 type MemStorage struct {
@@ -24,10 +20,10 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (ms *MemStorage) strValueToFloat(str string) (value float64, err error) {
-	value, err = strconv.ParseFloat(str, 64)
-	return
-}
+// func (ms *MemStorage) strValueToFloat(str string) (value float64, err error) {
+// 	value, err = strconv.ParseFloat(str, 64)
+// 	return
+// }
 
 func (ms *MemStorage) SetGauge(key string, value float64) (err error) {
 	if key == "" {
@@ -39,10 +35,10 @@ func (ms *MemStorage) SetGauge(key string, value float64) (err error) {
 	return
 }
 
-func (ms *MemStorage) strValueToInt(str string) (value int64, err error) {
-	value, err = strconv.ParseInt(str, 10, 64)
-	return
-}
+// func (ms *MemStorage) strValueToInt(str string) (value int64, err error) {
+// 	value, err = strconv.ParseInt(str, 10, 64)
+// 	return
+// }
 
 func (ms *MemStorage) SetCounter(key string, value int64) (err error) {
 	if key == "" {
@@ -116,7 +112,7 @@ func (ms *MemStorage) GetAllMetricsInJSON() []models.Metrics {
 
 		metric := models.Metrics{
 			ID:    key,
-			MType: "gauge",
+			MType: constants.Gauge,
 			Value: &value}
 		metrics = append(metrics, metric)
 	}
@@ -124,10 +120,36 @@ func (ms *MemStorage) GetAllMetricsInJSON() []models.Metrics {
 	for key, value := range ms.counter {
 		metric := models.Metrics{
 			ID:    key,
-			MType: "counter",
+			MType: constants.Counter,
 			Delta: &value}
 		metrics = append(metrics, metric)
 	}
 
 	return metrics
+}
+
+func (ms *MemStorage) UploadData(filePath string) {
+
+	fileReader, err := filetransfer.NewFileReader(filePath)
+	if err != nil {
+		panic(err)
+	}
+
+	metrics, err := fileReader.ReadMetrics()
+	if err != nil {
+		return
+	}
+
+	defer fileReader.Close()
+
+	if len(metrics) > 0 {
+		for _, metric := range metrics {
+			switch metric.MType {
+			case constants.Gauge:
+				ms.SetGauge(metric.ID, *metric.Value)
+			case constants.Counter:
+				ms.SetCounterFromFile(metric.ID, *metric.Delta)
+			}
+		}
+	}
 }

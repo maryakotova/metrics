@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/models"
 )
 
@@ -21,7 +22,7 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 	var intValue int64
 
 	switch metricType {
-	case "gauge":
+	case constants.Gauge:
 		switch v := metricValue.(type) {
 		case int:
 			floatValue = float64(v)
@@ -49,7 +50,7 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 			floatValue = v
 		}
 
-	case "counter":
+	case constants.Counter:
 		switch v := metricValue.(type) {
 		case int64:
 			intValue = v

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"text/template"
 
+	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/models"
 )
@@ -21,7 +22,6 @@ type DataStorage interface {
 	GetAllCounter() map[string]int64
 	GetGauge(key string) (value float64, err error)
 	GetCounter(key string) (value int64, err error)
-	// GetAllMetricsInJSON() []models.Metrics
 }
 
 type Server struct {
@@ -63,13 +63,13 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 	}
 
 	switch request.MType {
-	case "gauge":
+	case constants.Gauge:
 		if err := server.metrics.SetGauge(request.ID, *request.Value); err != nil {
 			http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
 			return
 		}
 		responce.Value = request.Value
-	case "counter":
+	case constants.Counter:
 		if err := server.metrics.SetCounter(request.ID, *request.Delta); err != nil {
 			http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
 			return
@@ -89,7 +89,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 	}
 
 	res.WriteHeader(http.StatusOK)
-	fmt.Printf("Responce: %v\n", responce)
+	// fmt.Printf("Responce: %v\n", responce)
 
 	if server.syncFileWrite {
 		server.fileWriter.WriteMetric(&responce)
@@ -119,7 +119,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	}
 
 	switch metricType {
-	case "gauge":
+	case constants.Gauge:
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
@@ -132,7 +132,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 		}
 		responce.Value = &value
 
-	case "counter":
+	case constants.Counter:
 		value, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
@@ -181,14 +181,14 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 	}
 
 	switch request.MType {
-	case "gauge":
+	case constants.Gauge:
 		gaugeValue, err := server.metrics.GetGauge(request.ID)
 		if err != nil {
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
 			return
 		}
 		responce.Value = &gaugeValue
-	case "counter":
+	case constants.Counter:
 		counterValue, err := server.metrics.GetCounter(request.ID)
 		if err != nil {
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
@@ -222,7 +222,7 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 
 	// switch chi.URLParam(req, "type") { !!!Почему не работает??????
 	switch req.PathValue("metricType") {
-	case "gauge":
+	case constants.Gauge:
 		metricValue, err := server.metrics.GetGauge(req.PathValue("metricName"))
 		if err != nil {
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
@@ -231,7 +231,7 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 		res.WriteHeader(http.StatusOK)
 		res.Write([]byte(strconv.FormatFloat(metricValue, 'f', -1, 64)))
 
-	case "counter":
+	case constants.Counter:
 		metricValue, err := server.metrics.GetCounter(req.PathValue("metricName"))
 		if err != nil {
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)

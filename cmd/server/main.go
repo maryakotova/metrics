@@ -3,12 +3,13 @@ package main
 import (
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/handlers"
 	"github.com/maryakotova/metrics/internal/logger"
+	"github.com/maryakotova/metrics/internal/middleware"
 	"github.com/maryakotova/metrics/internal/storage"
+	"github.com/maryakotova/metrics/internal/worker"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -26,7 +27,9 @@ func main() {
 
 	memStorage := storage.NewMemStorage()
 
-	UploadData(memStorage)
+	if restore {
+		memStorage.UploadData(filePath)
+	}
 
 	writer, err := filetransfer.NewFileWriter(filePath)
 	if err != nil {
@@ -37,16 +40,11 @@ func main() {
 	if interval == 0 {
 		syncFileWrite = true
 	} else {
-		ticker := time.NewTicker(time.Duration(interval) * time.Second)
-		defer ticker.Stop()
-
-		go func() {
-			for range ticker.C {
-				metrics := memStorage.GetAllMetricsInJSON()
-				writer.WriteMetrics(&metrics)
-			}
-
-		}()
+		task := func() {
+			metrics := memStorage.GetAllMetricsInJSON()
+			writer.WriteMetrics(&metrics)
+		}
+		worker.InitPeriodicFunc(interval, task)
 	}
 
 	server := handlers.NewServer(memStorage, syncFileWrite, writer)
@@ -85,7 +83,7 @@ func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 		supportsGzipJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
 		supportsGzipHTML := strings.Contains(r.Header.Get("Accept"), "text/html")
 		if supportsGzip && (supportsGzipJSON || supportsGzipHTML) {
-			cw := newCompressWriter(w)
+			cw := middleware.NewCompressWriter(w)
 			ow = cw
 			defer cw.Close()
 			ow.Header().Set("Content-Encoding", "gzip")
@@ -93,7 +91,7 @@ func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 
 		sendsGzip := strings.Contains(r.Header.Get("Content-Encoding"), "gzip")
 		if sendsGzip {
-			cr, err := newCompressReader(r.Body)
+			cr, err := middleware.NewCompressReader(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
