@@ -1,13 +1,27 @@
 package worker
 
-import "time"
+import (
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+)
 
-func InitPeriodicFunc(interval int64, task func()) {
+func TriggerGoFunc(ticker *time.Ticker, task func()) {
 
-	ticker := time.NewTicker(time.Duration(interval) * time.Second)
-	defer ticker.Stop()
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, syscall.SIGTERM, syscall.SIGINT)
 
-	for range ticker.C {
-		task()
-	}
+	go func(ticker *time.Ticker) {
+		for {
+			select {
+			case <-ticker.C:
+				task()
+			case <-signalChannel:
+				task()
+				os.Exit(0)
+			}
+		}
+	}(ticker)
+
 }

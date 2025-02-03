@@ -19,6 +19,15 @@ type Config struct {
 	Restore         bool   `env:"RESTORE"`
 }
 
+// func NewConfig() *Config {
+//     return &Config{
+//         ServerAddress:   "localhost:8080",
+//         StoreInterval:   300,
+//         FileStoragePath: "./metricsStorage.json",
+//         Restore:         true,
+//     }
+// }
+
 func parseFlags() {
 
 	var cfg Config
@@ -29,9 +38,9 @@ func parseFlags() {
 	}
 
 	flag.StringVar(&netAddress, "a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
-	flag.Int64Var(&interval, "i", 30, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
+	flag.Int64Var(&interval, "i", 300, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
 	flag.StringVar(&filePath, "f", "./metricsStorage.json", "Путь до файла, куда сохраняются текущие значения")
-	flag.BoolVar(&restore, "r", false, "Загрузка ранее сохранённые значения из указанного файла при старте сервера")
+	flag.BoolVar(&restore, "r", true, "Загрузка ранее сохранённые значения из указанного файла при старте сервера")
 	flag.Parse()
 
 	if cfg.ServerAddress != "" {
@@ -47,32 +56,3 @@ func parseFlags() {
 		restore = cfg.Restore
 	}
 }
-
-// func UploadData(memStorage *storage.MemStorage) {
-// 	if !restore {
-// 		return
-// 	}
-
-// 	fileReader, err := filetransfer.NewFileReader(filePath)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	metrics, err := fileReader.ReadMetrics()
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	defer fileReader.Close()
-
-// 	if len(metrics) > 0 {
-// 		for _, metric := range metrics {
-// 			switch metric.MType {
-// 			case "gauge":
-// 				memStorage.SetGauge(metric.ID, *metric.Value)
-// 			case "counter":
-// 				memStorage.SetCounterFromFile(metric.ID, *metric.Delta)
-// 			}
-// 		}
-// 	}
-// }

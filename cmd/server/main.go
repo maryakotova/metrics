@@ -10,6 +10,7 @@ import (
 	"github.com/maryakotova/metrics/internal/logger"
 	"github.com/maryakotova/metrics/internal/middleware"
 	"github.com/maryakotova/metrics/internal/storage"
+	"github.com/maryakotova/metrics/internal/worker"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -17,9 +18,6 @@ import (
 func main() {
 
 	parseFlags()
-
-	// signalChan := make(chan os.Signal, 1)
-	// signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	if err := logger.Initialize(""); err != nil {
 		panic(err)
@@ -35,37 +33,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer writer.Close()
 
 	var syncFileWrite bool
 	if interval == 0 {
 		syncFileWrite = true
 	} else {
-		// task := func() {
-		// 	metrics := memStorage.GetAllMetricsInJSON()
-		// 	writer.WriteMetrics(&metrics)
-		// }
-		// worker.InitPeriodicFunc(interval, task)
-
-		// ticker := time.NewTicker(time.Duration(interval) * time.Second)
-		// defer ticker.Stop()
-
-		// task := func() {
-		// 	metrics := memStorage.GetAllMetricsInJSON()
-		// 	writer.WriteMetrics(&metrics)
-		// }
-
-		// for range ticker.C {
-		// 	task()
-		// }
-
 		ticker := time.NewTicker(time.Duration(interval) * time.Second)
 		defer ticker.Stop()
-		go func() {
-			for range ticker.C {
-				metrics := memStorage.GetAllMetricsInJSON()
-				writer.WriteMetrics(&metrics)
-			}
-		}()
+
+		task := func() {
+			metrics := memStorage.GetAllMetricsInJSON()
+			writer.WriteMetrics(&metrics)
+		}
+
+		worker.TriggerGoFunc(ticker, task)
 	}
 
 	server := handlers.NewServer(memStorage, syncFileWrite, writer)
@@ -85,15 +67,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	// <-signalChan
-
-	// if interval != 0 {
-	// 	metrics := memStorage.GetAllMetricsInJSON()
-	// 	writer.WriteMetrics(&metrics)
-	// }
-	// writer.Close()
-	// os.Exit(0)
 }
 
 func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
