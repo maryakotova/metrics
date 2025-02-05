@@ -8,10 +8,25 @@ import (
 )
 
 var netAddress string
+var interval int64
+var filePath string
+var restore bool
 
 type Config struct {
-	ServerAddress string `env:"ADDRESS"`
+	ServerAddress   string `env:"ADDRESS"`
+	StoreInterval   int64  `env:"STORE_INTERVAL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	Restore         bool   `env:"RESTORE"`
 }
+
+// func NewConfig() *Config {
+//     return &Config{
+//         ServerAddress:   "localhost:8080",
+//         StoreInterval:   300,
+//         FileStoragePath: "./metricsStorage.json",
+//         Restore:         true,
+//     }
+// }
 
 func parseFlags() {
 
@@ -23,19 +38,21 @@ func parseFlags() {
 	}
 
 	flag.StringVar(&netAddress, "a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
+	flag.Int64Var(&interval, "i", 300, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
+	flag.StringVar(&filePath, "f", "./metricsStorage.json", "Путь до файла, куда сохраняются текущие значения")
+	flag.BoolVar(&restore, "r", true, "Загрузка ранее сохранённые значения из указанного файла при старте сервера")
 	flag.Parse()
 
 	if cfg.ServerAddress != "" {
 		netAddress = cfg.ServerAddress
 	}
+	if cfg.StoreInterval != 0 {
+		interval = cfg.StoreInterval
+	}
+	if cfg.FileStoragePath != "" {
+		filePath = cfg.FileStoragePath
+	}
+	if cfg.Restore {
+		restore = cfg.Restore
+	}
 }
-
-// func parseFlags() {
-
-// 	flag.StringVar(&netAddress, "a", "localhost:8080", "Адрес и порт для HTTP-сервера")
-// 	flag.Parse()
-
-// 	if envServAddr := os.Getenv("ADDRESS"); envServAddr != "" {
-// 		netAddress = envServAddr
-// 	}
-// }

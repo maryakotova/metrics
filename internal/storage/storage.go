@@ -1,15 +1,11 @@
 package storage
 
-// type MetricType string
-
 import (
 	"fmt"
-	"strconv"
-)
 
-const (
-	Gauge   string = "gauge"
-	Counter string = "counter"
+	"github.com/maryakotova/metrics/internal/constants"
+	"github.com/maryakotova/metrics/internal/filetransfer"
+	"github.com/maryakotova/metrics/internal/models"
 )
 
 type MemStorage struct {
@@ -24,47 +20,47 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (ms *MemStorage) strValueToFloat(str string) (value float64, err error) {
-	value, err = strconv.ParseFloat(str, 64)
-	return
-}
+// func (ms *MemStorage) strValueToFloat(str string) (value float64, err error) {
+// 	value, err = strconv.ParseFloat(str, 64)
+// 	return
+// }
 
-func (ms *MemStorage) SetGauge(key string, value string) (err error) {
+func (ms *MemStorage) SetGauge(key string, value float64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
 	}
-	floatValue, err := ms.strValueToFloat(value)
-	if err != nil {
-		return err
-	}
 
-	ms.gauge[key] = floatValue
+	ms.gauge[key] = value
 	return
 }
 
-func (ms *MemStorage) strValueToInt(str string) (value int64, err error) {
-	value, err = strconv.ParseInt(str, 10, 64)
-	return
-}
+// func (ms *MemStorage) strValueToInt(str string) (value int64, err error) {
+// 	value, err = strconv.ParseInt(str, 10, 64)
+// 	return
+// }
 
-func (ms *MemStorage) SetCounter(key string, value string) (err error) {
+func (ms *MemStorage) SetCounter(key string, value int64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
 	}
-	intValue, err := ms.strValueToInt(value)
-	if err != nil {
-		return err
-	}
-
 	_, ok := ms.counter[key]
 	if ok {
-		ms.counter[key] += intValue
+		ms.counter[key] += value
 
 	} else {
-		ms.counter[key] = intValue
+		ms.counter[key] = value
 	}
+	return
+}
+
+func (ms *MemStorage) SetCounterFromFile(key string, value int64) (err error) {
+	if key == "" {
+		err = fmt.Errorf("имя метрики обязательно для заполнения")
+		return
+	}
+	ms.counter[key] = value
 	return
 }
 
@@ -106,4 +102,54 @@ func (ms *MemStorage) GetAll() map[string]interface{} {
 	}
 
 	return allMetrics
+}
+
+func (ms *MemStorage) GetAllMetricsInJSON() []models.Metrics {
+
+	metrics := []models.Metrics{}
+
+	for key, value := range ms.gauge {
+
+		metric := models.Metrics{
+			ID:    key,
+			MType: constants.Gauge,
+			Value: &value}
+		metrics = append(metrics, metric)
+	}
+
+	for key, value := range ms.counter {
+		metric := models.Metrics{
+			ID:    key,
+			MType: constants.Counter,
+			Delta: &value}
+		metrics = append(metrics, metric)
+	}
+
+	return metrics
+}
+
+func (ms *MemStorage) UploadData(filePath string) {
+
+	fileReader, err := filetransfer.NewFileReader(filePath)
+	if err != nil {
+		panic(err)
+	}
+
+	metrics, err := fileReader.ReadMetrics()
+	if err != nil {
+		return
+	}
+
+	defer fileReader.Close()
+
+	if len(metrics) > 0 {
+		for _, metric := range metrics {
+			switch metric.MType {
+			case constants.Gauge:
+				ms.SetGauge(metric.ID, *metric.Value)
+			case constants.Counter:
+				ms.SetCounterFromFile(metric.ID, *metric.Delta)
+			}
+		}
+	}
 }

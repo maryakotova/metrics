@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/maryakotova/metrics/internal/collector"
+	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/sender"
 )
 
@@ -33,10 +34,10 @@ func main() {
 
 			for metricName, metricValue := range metrics {
 				var metricType string
-				if metricName == "PollCount" {
-					metricType = "counter"
+				if metricName == constants.PollCount {
+					metricType = constants.Counter
 				} else {
-					metricType = "gauge"
+					metricType = constants.Gauge
 				}
 				err := sender.SendMetric(serverAddress, metricType, metricName, metricValue)
 				if err != nil {
