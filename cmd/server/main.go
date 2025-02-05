@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/maryakotova/metrics/internal/worker"
 
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
@@ -22,6 +24,12 @@ func main() {
 	if err := logger.Initialize(""); err != nil {
 		panic(err)
 	}
+
+	db, err := sql.Open("pgx", dbDsn)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
 
 	memStorage := storage.NewMemStorage()
 
@@ -50,7 +58,7 @@ func main() {
 		worker.TriggerGoFunc(ticker, task)
 	}
 
-	server := handlers.NewServer(memStorage, syncFileWrite, writer)
+	server := handlers.NewServer(memStorage, syncFileWrite, writer, db)
 
 	router := chi.NewRouter()
 	router.Use()
@@ -62,6 +70,8 @@ func main() {
 
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdate)))
 	router.Post("/update/", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdateViaJSON)))
+
+	router.Get("/ping", logger.WithLogging(gzipMiddleware(server.HandlePing)))
 
 	err = http.ListenAndServe(netAddress, router)
 	if err != nil {

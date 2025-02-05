@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"text/template"
+	"time"
 
 	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/filetransfer"
@@ -28,13 +31,15 @@ type Server struct {
 	metrics       DataStorage
 	syncFileWrite bool
 	fileWriter    *filetransfer.FileWriter
+	db            *sql.DB
 }
 
-func NewServer(metrics DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter) *Server {
+func NewServer(metrics DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter, db *sql.DB) *Server {
 	return &Server{
 		metrics:       metrics,
 		syncFileWrite: syncFileWrite,
 		fileWriter:    fileWriter,
+		db:            db,
 	}
 }
 
@@ -278,4 +283,24 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 	}
 
 	res.WriteHeader(http.StatusOK)
+}
+
+func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	res.Header().Set("Content-Type", "text/plain")
+
+	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
+	defer cancel()
+
+	if err := server.db.PingContext(ctx); err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+
 }
