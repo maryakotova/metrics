@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maryakotova/metrics/internal/database/postgres"
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/handlers"
 	"github.com/maryakotova/metrics/internal/inmemory"
@@ -25,40 +26,50 @@ func main() {
 		panic(err)
 	}
 
-	db, err := sql.Open("pgx", dbDsn)
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
+	var server *handlers.Server
 
-	memStorage := inmemory.NewMemStorage()
+	if dbDsn != "" {
+		db, err := sql.Open("pgx", dbDsn)
+		if err != nil {
+			panic(err)
+		}
+		defer db.Close()
 
-	if restore {
-		memStorage.UploadData(filePath)
-	}
-
-	writer, err := filetransfer.NewFileWriter(filePath)
-	if err != nil {
-		panic(err)
-	}
-	defer writer.Close()
-
-	var syncFileWrite bool
-	if interval == 0 {
-		syncFileWrite = true
-	} else {
-		ticker := time.NewTicker(time.Duration(interval) * time.Second)
-		defer ticker.Stop()
-
-		task := func() {
-			metrics := memStorage.GetAllMetricsInJSON()
-			writer.WriteMetrics(&metrics)
+		postgresStorage := postgres.NewPostgresStorage(db)
+		err = postgresStorage.CreateTables()
+		if err != nil {
+			panic(err)
 		}
 
-		worker.TriggerGoFunc(ticker, task)
+		server = handlers.NewServer(postgresStorage, false, nil)
 	}
 
-	server := handlers.NewServer(memStorage, syncFileWrite, writer, db)
+	if filePath != "" {
+		memStorage := inmemory.NewMemStorage()
+		if restore {
+			memStorage.UploadData(filePath)
+		}
+		writer, err := filetransfer.NewFileWriter(filePath)
+		if err != nil {
+			panic(err)
+		}
+		defer writer.Close()
+
+		var syncFileWrite bool
+		if interval == 0 {
+			syncFileWrite = true
+		} else {
+			ticker := time.NewTicker(time.Duration(interval) * time.Second)
+			defer ticker.Stop()
+			task := func() {
+				metrics := memStorage.GetAllMetricsInJSON()
+				writer.WriteMetrics(&metrics)
+			}
+			worker.TriggerGoFunc(ticker, task)
+		}
+
+		server = handlers.NewServer(memStorage, syncFileWrite, writer)
+	}
 
 	router := chi.NewRouter()
 	router.Use()
@@ -73,7 +84,7 @@ func main() {
 
 	router.Get("/ping", logger.WithLogging(gzipMiddleware(server.HandlePing)))
 
-	err = http.ListenAndServe(netAddress, router)
+	err := http.ListenAndServe(netAddress, router)
 	if err != nil {
 		panic(err)
 	}

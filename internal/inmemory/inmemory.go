@@ -1,6 +1,7 @@
 package inmemory
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/maryakotova/metrics/internal/constants"
@@ -152,4 +153,8 @@ func (ms *MemStorage) UploadData(filePath string) {
 			}
 		}
 	}
+}
+
+func (ms *MemStorage) CheckConnection(ctx context.Context) (err error) {
+	return fmt.Errorf("in-memory storage is used")
 }

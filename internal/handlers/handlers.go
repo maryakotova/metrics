@@ -2,13 +2,11 @@ package handlers
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"text/template"
-	"time"
 
 	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/filetransfer"
@@ -25,21 +23,20 @@ type DataStorage interface {
 	GetAllCounter() map[string]int64
 	GetGauge(key string) (value float64, err error)
 	GetCounter(key string) (value int64, err error)
+	CheckConnection(ctx context.Context) (err error)
 }
 
 type Server struct {
 	metrics       DataStorage
 	syncFileWrite bool
 	fileWriter    *filetransfer.FileWriter
-	db            *sql.DB
 }
 
-func NewServer(metrics DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter, db *sql.DB) *Server {
+func NewServer(metrics DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter) *Server {
 	return &Server{
 		metrics:       metrics,
 		syncFileWrite: syncFileWrite,
 		fileWriter:    fileWriter,
-		db:            db,
 	}
 }
 
@@ -293,10 +290,7 @@ func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain")
 
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
-
-	if err := server.db.PingContext(ctx); err != nil {
+	if err := server.metrics.CheckConnection(req.Context()); err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}

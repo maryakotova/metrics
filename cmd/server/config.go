@@ -44,7 +44,7 @@ func parseFlags() {
 	flag.Int64Var(&interval, "i", 300, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
 	flag.StringVar(&filePath, "f", "./metricsStorage.json", "Путь до файла, куда сохраняются текущие значения")
 	flag.BoolVar(&restore, "r", true, "Загрузка ранее сохранённые значения из указанного файла при старте сервера")
-	flag.StringVar(&dbDsn, "d", "host=localhost user=metrics password=test dbname=metrics sslmode=disable", "Строка c адресом подключения к БД")
+	flag.StringVar(&dbDsn, "d", "host=localhost user=metrics password=test dbname=metrics sslmode=disable", "Строка c адресом подключения к БД") //"host=localhost user=metrics password=test dbname=metrics sslmode=disable"
 
 	flag.Parse()
 
@@ -62,5 +62,9 @@ func parseFlags() {
 	}
 	if cfg.DatabaseDsn != "" {
 		dbDsn = cfg.DatabaseDsn
+	}
+
+	if dbDsn != "" {
+		filePath = ""
 	}
 }
