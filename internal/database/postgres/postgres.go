@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/maryakotova/metrics/internal/constants"
 )
 
 type PostgresStorage struct {
@@ -36,8 +38,14 @@ func (ps PostgresStorage) SetGauge(key string, value float64) (err error) {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
 	}
-	//
-	return
+	query := `
+	INSERT INTO metrics (id, mtype, value)
+	VALUES ($1, $2, $3) 
+	ON CONFLICT (id) DO UPDATE
+	SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;
+	`
+	_, err = ps.db.Exec(query, key, constants.Gauge, value)
+	return err
 }
 
 func (ps PostgresStorage) SetCounter(key string, value int64) (err error) {
@@ -45,19 +53,43 @@ func (ps PostgresStorage) SetCounter(key string, value int64) (err error) {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
 	}
-	//
-	return
+	query := `
+	INSERT INTO metrics (id, mtype, delta)
+	VALUES ($1, $2, $3) 
+	ON CONFLICT (id) DO UPDATE
+	SET mtype = EXCLUDED.mtype, delta = EXCLUDED.delta;
+	`
+	_, err = ps.db.Exec(query, key, constants.Gauge, value)
+	return err
 }
 
 func (ps PostgresStorage) GetGauge(key string) (value float64, err error) {
-
-	//
+	query := `
+	SELECT value FROM metrics WHERE id = $1
+	`
+	row := ps.db.QueryRow(query, key)
+	if err = row.Scan(&value); err != nil {
+		if err == sql.ErrNoRows {
+			err = fmt.Errorf("значение метрики %s типа gauge не найдено", key)
+		} else {
+			err = fmt.Errorf("ошибка при сканировании значения: %v", err)
+		}
+	}
 	return
 }
 
 func (ps PostgresStorage) GetCounter(key string) (value int64, err error) {
-
-	//
+	query := `
+	SELECT delta FROM metrics WHERE id = $1
+	`
+	row := ps.db.QueryRow(query, key)
+	if err = row.Scan(&value); err != nil {
+		if err == sql.ErrNoRows {
+			err = fmt.Errorf("значение метрики %s типа counter не найдено", key)
+		} else {
+			err = fmt.Errorf("ошибка при сканировании значения: %v", err)
+		}
+	}
 	return
 }
 
