@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"strings"
@@ -36,7 +37,7 @@ func main() {
 		defer db.Close()
 
 		postgresStorage := postgres.NewPostgresStorage(db)
-		err = postgresStorage.CreateTables()
+		err = postgresStorage.Bootstrap(context.TODO())
 		if err != nil {
 			panic(err)
 		}
@@ -81,6 +82,7 @@ func main() {
 
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdate)))
 	router.Post("/update/", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdateViaJSON)))
+	router.Post("/updates/", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdates)))
 
 	router.Get("/ping", logger.WithLogging(gzipMiddleware(server.HandlePing)))
 

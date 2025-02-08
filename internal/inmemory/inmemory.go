@@ -26,7 +26,7 @@ func NewMemStorage() *MemStorage {
 // 	return
 // }
 
-func (ms *MemStorage) SetGauge(key string, value float64) (err error) {
+func (ms *MemStorage) SetGauge(ctx context.Context, key string, value float64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
@@ -41,7 +41,7 @@ func (ms *MemStorage) SetGauge(key string, value float64) (err error) {
 // 	return
 // }
 
-func (ms *MemStorage) SetCounter(key string, value int64) (err error) {
+func (ms *MemStorage) SetCounter(ctx context.Context, key string, value int64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
@@ -56,7 +56,7 @@ func (ms *MemStorage) SetCounter(key string, value int64) (err error) {
 	return
 }
 
-func (ms *MemStorage) SetCounterFromFile(key string, value int64) (err error) {
+func (ms *MemStorage) SetCounterFromFile(ctx context.Context, key string, value int64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
@@ -65,7 +65,7 @@ func (ms *MemStorage) SetCounterFromFile(key string, value int64) (err error) {
 	return
 }
 
-func (ms *MemStorage) GetGauge(key string) (value float64, err error) {
+func (ms *MemStorage) GetGauge(ctx context.Context, key string) (value float64, err error) {
 
 	value, ok := ms.gauge[key]
 	if !ok {
@@ -74,7 +74,7 @@ func (ms *MemStorage) GetGauge(key string) (value float64, err error) {
 	return
 }
 
-func (ms *MemStorage) GetCounter(key string) (value int64, err error) {
+func (ms *MemStorage) GetCounter(ctx context.Context, key string) (value int64, err error) {
 	value, ok := ms.counter[key]
 	if !ok {
 		err = fmt.Errorf("значение метрики %s типа Counter не найдено", key)
@@ -82,15 +82,15 @@ func (ms *MemStorage) GetCounter(key string) (value int64, err error) {
 	return
 }
 
-func (ms *MemStorage) GetAllGauge() map[string]float64 {
+func (ms *MemStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 	return ms.gauge
 }
 
-func (ms *MemStorage) GetAllCounter() map[string]int64 {
+func (ms *MemStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 	return ms.counter
 }
 
-func (ms *MemStorage) GetAll() map[string]interface{} {
+func (ms *MemStorage) GetAll(ctx context.Context) map[string]interface{} {
 
 	allMetrics := make(map[string]interface{})
 
@@ -147,9 +147,9 @@ func (ms *MemStorage) UploadData(filePath string) {
 		for _, metric := range metrics {
 			switch metric.MType {
 			case constants.Gauge:
-				ms.SetGauge(metric.ID, *metric.Value)
+				ms.SetGauge(context.Background(), metric.ID, *metric.Value)
 			case constants.Counter:
-				ms.SetCounterFromFile(metric.ID, *metric.Delta)
+				ms.SetCounterFromFile(context.Background(), metric.ID, *metric.Delta)
 			}
 		}
 	}
@@ -157,4 +157,21 @@ func (ms *MemStorage) UploadData(filePath string) {
 
 func (ms *MemStorage) CheckConnection(ctx context.Context) (err error) {
 	return fmt.Errorf("in-memory storage is used")
+}
+
+func (ms *MemStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error) {
+	for _, metric := range metrics {
+		switch metric.MType {
+		case constants.Gauge:
+			err = ms.SetGauge(ctx, metric.ID, *metric.Value)
+			return
+		case constants.Counter:
+			err = ms.SetCounter(ctx, metric.ID, *metric.Delta)
+			return
+		default:
+			err = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
+			return
+		}
+	}
+	return
 }

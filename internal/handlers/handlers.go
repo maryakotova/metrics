@@ -16,25 +16,26 @@ import (
 const tplPath string = "./templates/metrics.html"
 
 type DataStorage interface {
-	SetGauge(key string, value float64) (err error)
-	SetCounter(key string, value int64) (err error)
-	GetAll() map[string]interface{}
-	GetAllGauge() map[string]float64
-	GetAllCounter() map[string]int64
-	GetGauge(key string) (value float64, err error)
-	GetCounter(key string) (value int64, err error)
+	SetGauge(ctx context.Context, key string, value float64) (err error)
+	SetCounter(ctx context.Context, key string, value int64) (err error)
+	SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error)
+	//GetAll(ctx context.Context) map[string]interface{}
+	GetAllGauge(ctx context.Context) map[string]float64
+	GetAllCounter(ctx context.Context) map[string]int64
+	GetGauge(ctx context.Context, key string) (value float64, err error)
+	GetCounter(ctx context.Context, key string) (value int64, err error)
 	CheckConnection(ctx context.Context) (err error)
 }
 
 type Server struct {
-	metrics       DataStorage
+	storage       DataStorage
 	syncFileWrite bool
 	fileWriter    *filetransfer.FileWriter
 }
 
-func NewServer(metrics DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter) *Server {
+func NewServer(storage DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter) *Server {
 	return &Server{
-		metrics:       metrics,
+		storage:       storage,
 		syncFileWrite: syncFileWrite,
 		fileWriter:    fileWriter,
 	}
@@ -66,13 +67,13 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 
 	switch request.MType {
 	case constants.Gauge:
-		if err := server.metrics.SetGauge(request.ID, *request.Value); err != nil {
+		if err := server.storage.SetGauge(req.Context(), request.ID, *request.Value); err != nil {
 			http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
 			return
 		}
 		responce.Value = request.Value
 	case constants.Counter:
-		if err := server.metrics.SetCounter(request.ID, *request.Delta); err != nil {
+		if err := server.storage.SetCounter(req.Context(), request.ID, *request.Delta); err != nil {
 			http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
 			return
 		}
@@ -127,7 +128,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 			http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
 			return
 		}
-		err = server.metrics.SetGauge(metricName, value)
+		err = server.storage.SetGauge(req.Context(), metricName, value)
 		if err != nil {
 			http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
 			return
@@ -140,7 +141,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
 			return
 		}
-		err = server.metrics.SetCounter(metricName, value)
+		err = server.storage.SetCounter(req.Context(), metricName, value)
 		if err != nil {
 			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
 			return
@@ -184,14 +185,14 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 
 	switch request.MType {
 	case constants.Gauge:
-		gaugeValue, err := server.metrics.GetGauge(request.ID)
+		gaugeValue, err := server.storage.GetGauge(req.Context(), request.ID)
 		if err != nil {
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
 			return
 		}
 		responce.Value = &gaugeValue
 	case constants.Counter:
-		counterValue, err := server.metrics.GetCounter(request.ID)
+		counterValue, err := server.storage.GetCounter(req.Context(), request.ID)
 		if err != nil {
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
 			return
@@ -225,7 +226,7 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 	// switch chi.URLParam(req, "type") { !!!Почему не работает??????
 	switch req.PathValue("metricType") {
 	case constants.Gauge:
-		metricValue, err := server.metrics.GetGauge(req.PathValue("metricName"))
+		metricValue, err := server.storage.GetGauge(req.Context(), req.PathValue("metricName"))
 		if err != nil {
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
 			return
@@ -234,7 +235,7 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 		res.Write([]byte(strconv.FormatFloat(metricValue, 'f', -1, 64)))
 
 	case constants.Counter:
-		metricValue, err := server.metrics.GetCounter(req.PathValue("metricName"))
+		metricValue, err := server.storage.GetCounter(req.Context(), req.PathValue("metricName"))
 		if err != nil {
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
 			return
@@ -264,8 +265,8 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 		IntMap   map[string]int64
 		FloatMap map[string]float64
 	}{
-		IntMap:   server.metrics.GetAllCounter(),
-		FloatMap: server.metrics.GetAllGauge(),
+		IntMap:   server.storage.GetAllCounter(req.Context()),
+		FloatMap: server.storage.GetAllGauge(req.Context()),
 	}
 
 	tmpl, err := template.ParseFiles(tplPath)
@@ -290,11 +291,41 @@ func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain")
 
-	if err := server.metrics.CheckConnection(req.Context()); err != nil {
+	if err := server.storage.CheckConnection(req.Context()); err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte("Connection is successful"))
+}
+
+func (s *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request []models.Metrics
+
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&request); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if len(request) == 0 {
+		http.Error(res, "Empty batch", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.storage.SaveMetrics(req.Context(), request); err != nil {
+		http.Error(res, "error when saving to DB", http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "text/html")
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte("metrics have been updated"))
+
 }
