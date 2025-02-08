@@ -8,9 +8,9 @@ import (
 
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/handlers"
+	"github.com/maryakotova/metrics/internal/inmemory"
 	"github.com/maryakotova/metrics/internal/logger"
 	"github.com/maryakotova/metrics/internal/middleware"
-	"github.com/maryakotova/metrics/internal/storage"
 	"github.com/maryakotova/metrics/internal/worker"
 
 	"github.com/go-chi/chi/v5"
@@ -31,7 +31,7 @@ func main() {
 	}
 	defer db.Close()
 
-	memStorage := storage.NewMemStorage()
+	memStorage := inmemory.NewMemStorage()
 
 	if restore {
 		memStorage.UploadData(filePath)

@@ -302,5 +302,5 @@ func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.WriteHeader(http.StatusOK)
-
+	res.Write([]byte("Connection is successful"))
 }
