@@ -132,18 +132,6 @@ func SendMetrics(serverAddress string, metrics []models.MetricsForSend) (err err
 		return fmt.Errorf("failed to close gzip writer: %v", err)
 	}
 
-	// var buf bytes.Buffer
-	// gz := gzip.NewWriter(&buf)
-	// encoder := json.NewEncoder(gz)
-
-	// if err := encoder.Encode(metrics); err != nil {
-	// 	return fmt.Errorf("failed to encode metrics: %w", err)
-	// }
-	// if err = gz.Close(); err != nil {
-	// 	fmt.Printf("Failed compress data: %v", err)
-	// 	return err
-	// }
-
 	url := fmt.Sprintf("http://%s/updates/", serverAddress)
 
 	request, err := http.NewRequest("POST", url, bytes.NewBuffer(buf.Bytes()))
