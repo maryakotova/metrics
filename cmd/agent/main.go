@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/maryakotova/metrics/internal/collector"
+	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/sender"
 )
 
@@ -18,27 +19,6 @@ func main() {
 
 	parseFlags()
 
-	n := int64(0)
-	collector.SetPollCountInitial()
-
-	for {
-		time.Sleep(time.Duration(pollInterval) * time.Second)
-		n += pollInterval
-
-		metrics := collector.CollectMetricsForBatch()
-
-		if len(metrics) > 0 {
-			if reportInterval == n {
-				n = 0
-				collector.SetPollCountInitial()
-
-				if err := sender.SendMetrics(serverAddress, metrics); err != nil {
-					fmt.Printf("Ошибка при отправке метрик: %s\n", err)
-				}
-			}
-		}
-	}
-
 	// n := int64(0)
 	// collector.SetPollCountInitial()
 
@@ -46,24 +26,45 @@ func main() {
 	// 	time.Sleep(time.Duration(pollInterval) * time.Second)
 	// 	n += pollInterval
 
-	// 	metrics := collector.CollectMetrics()
+	// 	metrics := collector.CollectMetricsForBatch()
 
-	// 	if reportInterval == n {
-	// 		n = 0
-	// 		collector.SetPollCountInitial()
+	// 	if len(metrics) > 0 {
+	// 		if reportInterval == n {
+	// 			n = 0
+	// 			collector.SetPollCountInitial()
 
-	// 		for metricName, metricValue := range metrics {
-	// 			var metricType string
-	// 			if metricName == constants.PollCount {
-	// 				metricType = constants.Counter
-	// 			} else {
-	// 				metricType = constants.Gauge
-	// 			}
-	// 			err := sender.SendMetric(serverAddress, metricType, metricName, metricValue)
-	// 			if err != nil {
-	// 				fmt.Printf("Ошибка при отправке метрики %s: %s\n", metricName, err)
+	// 			if err := sender.SendMetrics(serverAddress, metrics); err != nil {
+	// 				fmt.Printf("Ошибка при отправке метрик: %s\n", err)
 	// 			}
 	// 		}
 	// 	}
 	// }
+
+	n := int64(0)
+	collector.SetPollCountInitial()
+
+	for {
+		time.Sleep(time.Duration(pollInterval) * time.Second)
+		n += pollInterval
+
+		metrics := collector.CollectMetrics()
+
+		if reportInterval == n {
+			n = 0
+			collector.SetPollCountInitial()
+
+			for metricName, metricValue := range metrics {
+				var metricType string
+				if metricName == constants.PollCount {
+					metricType = constants.Counter
+				} else {
+					metricType = constants.Gauge
+				}
+				err := sender.SendMetric(serverAddress, metricType, metricName, metricValue)
+				if err != nil {
+					fmt.Printf("Ошибка при отправке метрики %s: %s\n", metricName, err)
+				}
+			}
+		}
+	}
 }
