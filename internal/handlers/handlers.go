@@ -264,10 +264,7 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 	data := struct {
 		IntMap   map[string]int64
 		FloatMap map[string]float64
-	}{
-		IntMap:   server.storage.GetAllCounter(req.Context()),
-		FloatMap: server.storage.GetAllGauge(req.Context()),
-	}
+	}{IntMap: server.storage.GetAllCounter(req.Context()), FloatMap: server.storage.GetAllGauge(req.Context())}
 
 	tmpl, err := template.ParseFiles(tplPath)
 	if err != nil {
@@ -300,7 +297,7 @@ func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
 	res.Write([]byte("Connection is successful"))
 }
 
-func (s *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Request) {
+func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -319,7 +316,7 @@ func (s *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	if err := s.storage.SaveMetrics(req.Context(), request); err != nil {
+	if err := server.storage.SaveMetrics(req.Context(), request); err != nil {
 		http.Error(res, "error when saving to DB", http.StatusInternalServerError)
 		return
 	}

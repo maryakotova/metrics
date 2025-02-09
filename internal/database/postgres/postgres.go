@@ -64,7 +64,7 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value int6
 	}
 
 	val, err := ps.GetCounter(ctx, key)
-	if err != nil {
+	if err == nil {
 		value = +val
 	}
 
@@ -167,7 +167,31 @@ func (ps PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 
 func (ps PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
 
-	return make(map[string]interface{})
+	query := `
+	SELECT id, delta FROM metrics
+	`
+	rows, err := ps.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	metrics := make(map[string]interface{})
+	for rows.Next() {
+		var id string
+		var value int64
+
+		if err := rows.Scan(&id, &value); err != nil {
+			return nil
+		}
+		metrics[id] = value
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil
+	}
+
+	return metrics
 }
 
 func (ps PostgresStorage) CheckConnection(ctx context.Context) (err error) {
@@ -175,7 +199,6 @@ func (ps PostgresStorage) CheckConnection(ctx context.Context) (err error) {
 	defer cancel()
 
 	return ps.db.PingContext(context)
-
 }
 
 func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error) {
