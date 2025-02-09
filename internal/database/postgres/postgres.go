@@ -219,7 +219,7 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 	INSERT INTO metrics (id, mtype, delta)
 	VALUES ($1, $2, $3) 
 	ON CONFLICT (id) DO UPDATE
-	SET mtype = EXCLUDED.mtype, delta = EXCLUDED.delta;
+	SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
 	`
 
 	for _, metric := range metrics {
@@ -240,10 +240,6 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 				return
 			}
 		case constants.Counter:
-			val, er := ps.GetCounter(ctx, metric.ID)
-			if er == nil {
-				*metric.Delta += val
-			}
 			_, err = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
 			if err != nil {
 				return
