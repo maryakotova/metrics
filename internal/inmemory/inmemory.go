@@ -21,30 +21,20 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-// func (ms *MemStorage) strValueToFloat(str string) (value float64, err error) {
-// 	value, err = strconv.ParseFloat(str, 64)
-// 	return
-// }
-
 func (ms *MemStorage) SetGauge(ctx context.Context, key string, value float64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
-		return
+		return err
 	}
 
 	ms.gauge[key] = value
 	return
 }
 
-// func (ms *MemStorage) strValueToInt(str string) (value int64, err error) {
-// 	value, err = strconv.ParseInt(str, 10, 64)
-// 	return
-// }
-
 func (ms *MemStorage) SetCounter(ctx context.Context, key string, value int64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
-		return
+		return err
 	}
 	_, ok := ms.counter[key]
 	if ok {
@@ -59,7 +49,7 @@ func (ms *MemStorage) SetCounter(ctx context.Context, key string, value int64) (
 func (ms *MemStorage) SetCounterFromFile(ctx context.Context, key string, value int64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
-		return
+		return err
 	}
 	ms.counter[key] = value
 	return
@@ -70,6 +60,7 @@ func (ms *MemStorage) GetGauge(ctx context.Context, key string) (value float64, 
 	value, ok := ms.gauge[key]
 	if !ok {
 		err = fmt.Errorf("значение метрики %s типа gauge не найдено", key)
+		return
 	}
 	return
 }
@@ -163,14 +154,15 @@ func (ms *MemStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 	for _, metric := range metrics {
 		switch metric.MType {
 		case constants.Gauge:
-			err = ms.SetGauge(ctx, metric.ID, *metric.Value)
-			return
+			if err = ms.SetGauge(ctx, metric.ID, *metric.Value); err != nil {
+				return err
+			}
 		case constants.Counter:
-			err = ms.SetCounter(ctx, metric.ID, *metric.Delta)
-			return
+			if err = ms.SetCounter(ctx, metric.ID, *metric.Delta); err != nil {
+				return err
+			}
 		default:
-			err = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
-			return
+			return fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
 		}
 	}
 	return
