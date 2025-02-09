@@ -240,6 +240,10 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 				return
 			}
 		case constants.Counter:
+			val, er := ps.GetCounter(ctx, metric.ID)
+			if er == nil {
+				*metric.Delta += val
+			}
 			_, err = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
 			if err != nil {
 				return
