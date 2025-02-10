@@ -109,7 +109,25 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 
 }
 
-func SendMetrics(serverAddress string, metrics []models.MetricsForSend) (err error) {
+func SendMetrics(serverAddress string, metrics map[string]interface{}) (err error) {
+	for metricName, metricValue := range metrics {
+		var metricType string
+		if metricName == constants.PollCount {
+			metricType = constants.Counter
+		} else {
+			metricType = constants.Gauge
+		}
+		err := SendMetric(serverAddress, metricType, metricName, metricValue)
+
+		if err != nil {
+			addText := fmt.Sprintf("Ошибка при отправке метрики %s\n", metricName)
+			return fmt.Errorf("%s %w", addText, err)
+		}
+	}
+	return nil
+}
+
+func SendMetricsBatch(serverAddress string, metrics []models.MetricsForSend) (err error) {
 	if len(metrics) == 0 {
 		err = fmt.Errorf("metrics table is empty")
 		return

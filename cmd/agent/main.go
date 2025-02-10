@@ -1,11 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/maryakotova/metrics/internal/collector"
-	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/sender"
 )
 
@@ -33,7 +34,7 @@ func main() {
 	// 			n = 0
 	// 			collector.SetPollCountInitial()
 
-	// 			if err := sender.SendMetrics(serverAddress, metrics); err != nil {
+	// 			if err := sender.SendMetricsBatch(serverAddress, metrics); err != nil {
 	// 				fmt.Printf("Ошибка при отправке метрик: %s\n", err)
 	// 			}
 	// 		}
@@ -53,18 +54,42 @@ func main() {
 			n = 0
 			collector.SetPollCountInitial()
 
-			for metricName, metricValue := range metrics {
-				var metricType string
-				if metricName == constants.PollCount {
-					metricType = constants.Counter
-				} else {
-					metricType = constants.Gauge
+			retries := 0
+			for retries < 4 {
+
+				err := sender.SendMetrics(serverAddress, metrics)
+				if err == nil {
+					break
 				}
-				err := sender.SendMetric(serverAddress, metricType, metricName, metricValue)
-				if err != nil {
-					fmt.Printf("Ошибка при отправке метрики %s: %s\n", metricName, err)
+
+				var opErr *net.OpError
+				if !errors.As(err, &opErr) {
+					break
 				}
+
+				retries++
+
+				if retries == 4 {
+					fmt.Println("ошибка соединения")
+					return
+				}
+
+				time.Sleep(time.Duration(retries*2+1) * time.Second) // Backoff: 1s, 3s, 5s
+
 			}
+			// for metricName, metricValue := range metrics {
+			// 	var metricType string
+			// 	if metricName == constants.PollCount {
+			// 		metricType = constants.Counter
+			// 	} else {
+			// 		metricType = constants.Gauge
+			// 	}
+			// 	err := sender.SendMetric(serverAddress, metricType, metricName, metricValue)
+
+			// 	if err != nil {
+			// 		fmt.Printf("Ошибка при отправке метрики %s: %s\n", metricName, err)
+			// 	}
+			// }
 		}
 	}
 }
