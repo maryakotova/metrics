@@ -92,7 +92,7 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value int6
 	INSERT INTO metrics (id, mtype, delta)
 	VALUES ($1, $2, $3) 
 	ON CONFLICT (id) DO UPDATE
-	SET mtype = EXCLUDED.mtype, delta = EXCLUDED.delta;
+	SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
 	`
 	// _, err = ps.db.ExecContext(ctx, query, key, constants.Counter, value)
 
