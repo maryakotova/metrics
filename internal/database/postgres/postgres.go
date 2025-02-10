@@ -117,7 +117,7 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value int6
 
 func (ps PostgresStorage) GetGauge(ctx context.Context, key string) (value float64, err error) {
 	query := `
-	SELECT value FROM metrics WHERE id = $1, mtype = $2;
+	SELECT value FROM metrics WHERE id = $1 AND mtype = $2;
 	`
 	// row := ps.db.QueryRowContext(ctx, query, key, constants.Gauge)
 	// if err = row.Scan(&value); err != nil {
@@ -156,7 +156,7 @@ func (ps PostgresStorage) GetGauge(ctx context.Context, key string) (value float
 
 func (ps PostgresStorage) GetCounter(ctx context.Context, key string) (value int64, err error) {
 	query := `
-	SELECT delta FROM metrics WHERE id = $1, mtype = $2;
+	SELECT delta FROM metrics WHERE id = $1 AND mtype = $2;
 	`
 	// row := ps.db.QueryRowContext(ctx, query, key, constants.Counter)
 	// if err = row.Scan(&value); err != nil {
