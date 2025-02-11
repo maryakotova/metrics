@@ -74,6 +74,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 		responce.Value = request.Value
 	case constants.Counter:
 		if err := server.storage.SetCounter(req.Context(), request.ID, request.Delta); err != nil {
+			fmt.Printf("значения: %s, %v, %v, %s", request.ID, request.Delta, *request.Delta, err)
 			http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
 			return
 		}
