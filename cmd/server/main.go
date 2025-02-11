@@ -70,7 +70,7 @@ func main() {
 			worker.TriggerGoFunc(ticker, task)
 		}
 
-		server = handlers.NewServer(memStorage, syncFileWrite, writer)
+		server = handlers.NewServer(memStorage, syncFileWrite, writer, log)
 	}
 
 	router := chi.NewRouter()
