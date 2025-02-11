@@ -43,7 +43,7 @@ func main() {
 			panic(err)
 		}
 
-		server = handlers.NewServer(postgresStorage, false, nil)
+		server = handlers.NewServer(postgresStorage, false, nil, log)
 	}
 
 	if filePath != "" {
