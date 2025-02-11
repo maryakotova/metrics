@@ -31,17 +31,18 @@ func (ms *MemStorage) SetGauge(ctx context.Context, key string, value float64) (
 	return
 }
 
-func (ms *MemStorage) SetCounter(ctx context.Context, key string, value int64) (err error) {
+func (ms *MemStorage) SetCounter(ctx context.Context, key string, value *int64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return err
 	}
-	_, ok := ms.counter[key]
+	val, ok := ms.counter[key]
 	if ok {
-		ms.counter[key] += value
+		ms.counter[key] += *value
+		*value += val
 
 	} else {
-		ms.counter[key] = value
+		ms.counter[key] = *value
 	}
 	return
 }
@@ -158,7 +159,7 @@ func (ms *MemStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics)
 				return err
 			}
 		case constants.Counter:
-			if err = ms.SetCounter(ctx, metric.ID, *metric.Delta); err != nil {
+			if err = ms.SetCounter(ctx, metric.ID, metric.Delta); err != nil {
 				return err
 			}
 		default:

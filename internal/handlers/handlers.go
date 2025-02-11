@@ -17,7 +17,7 @@ const tplPath string = "./templates/metrics.html"
 
 type DataStorage interface {
 	SetGauge(ctx context.Context, key string, value float64) (err error)
-	SetCounter(ctx context.Context, key string, value int64) (err error)
+	SetCounter(ctx context.Context, key string, value *int64) (err error)
 	SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error)
 	//GetAll(ctx context.Context) map[string]interface{}
 	GetAllGauge(ctx context.Context) map[string]float64
@@ -73,7 +73,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 		}
 		responce.Value = request.Value
 	case constants.Counter:
-		if err := server.storage.SetCounter(req.Context(), request.ID, *request.Delta); err != nil {
+		if err := server.storage.SetCounter(req.Context(), request.ID, request.Delta); err != nil {
 			http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
 			return
 		}
@@ -141,7 +141,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
 			return
 		}
-		err = server.storage.SetCounter(req.Context(), metricName, value)
+		err = server.storage.SetCounter(req.Context(), metricName, &value)
 		if err != nil {
 			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
 			return

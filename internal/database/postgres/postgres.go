@@ -77,15 +77,10 @@ func (ps PostgresStorage) SetGauge(ctx context.Context, key string, value float6
 	return err
 }
 
-func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value int64) (err error) {
+func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value *int64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
-	}
-
-	val, err := ps.GetCounter(ctx, key)
-	if err == nil {
-		value = +val
 	}
 
 	query := `
@@ -100,6 +95,10 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value int6
 	for retries < 4 {
 		_, err = ps.db.ExecContext(ctx, query, key, constants.Counter, value)
 		if err == nil {
+			val, err := ps.GetCounter(ctx, key)
+			if err == nil {
+				*value = val
+			}
 			return nil
 		}
 		if !isRetriableError(err) {
@@ -112,6 +111,7 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value int6
 		}
 		time.Sleep(time.Duration(retries*2+1) * time.Second) // Backoff: 1s, 3s, 5s
 	}
+
 	return err
 }
 
