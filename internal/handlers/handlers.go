@@ -11,6 +11,7 @@ import (
 	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/models"
+	"go.uber.org/zap"
 )
 
 const tplPath string = "./templates/metrics.html"
@@ -31,13 +32,15 @@ type Server struct {
 	storage       DataStorage
 	syncFileWrite bool
 	fileWriter    *filetransfer.FileWriter
+	logger        *zap.Logger
 }
 
-func NewServer(storage DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter) *Server {
+func NewServer(storage DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter, logger *zap.Logger) *Server {
 	return &Server{
 		storage:       storage,
 		syncFileWrite: syncFileWrite,
 		fileWriter:    fileWriter,
+		logger:        logger,
 	}
 }
 
@@ -188,6 +191,8 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 	case constants.Gauge:
 		gaugeValue, err := server.storage.GetGauge(req.Context(), request.ID)
 		if err != nil {
+			err = fmt.Errorf("ошибка при чтении gauge: %s, %s, %w", request.ID, request.MType, err)
+			server.logger.Error(err.Error())
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
 			return
 		}
@@ -195,11 +200,15 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 	case constants.Counter:
 		counterValue, err := server.storage.GetCounter(req.Context(), request.ID)
 		if err != nil {
+			err = fmt.Errorf("ошибка при чтении counter: %s, %s, %w", request.ID, request.MType, err)
+			server.logger.Error(err.Error())
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
 			return
 		}
 		responce.Delta = &counterValue
 	default:
+		err := fmt.Errorf("ошибка при чтении неизвестного типа метрики: %s, %s", req.PathValue("metricName"), req.PathValue("metricType"))
+		server.logger.Error(err.Error())
 		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
 		return
 	}
@@ -229,6 +238,8 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 	case constants.Gauge:
 		metricValue, err := server.storage.GetGauge(req.Context(), req.PathValue("metricName"))
 		if err != nil {
+			err = fmt.Errorf("ошибка при чтении gauge: %s, %s, %w", req.PathValue("metricName"), req.PathValue("metricType"), err)
+			server.logger.Error(err.Error())
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
 			return
 		}
@@ -238,6 +249,8 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 	case constants.Counter:
 		metricValue, err := server.storage.GetCounter(req.Context(), req.PathValue("metricName"))
 		if err != nil {
+			err = fmt.Errorf("ошибка при чтении counter: %s, %s, %w", req.PathValue("metricName"), req.PathValue("metricType"), err)
+			server.logger.Error(err.Error())
 			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
 			return
 		}
@@ -249,6 +262,8 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 		return
 
 	default:
+		err := fmt.Errorf("ошибка при чтении неизвестного типа метрики: %s, %s", req.PathValue("metricName"), req.PathValue("metricType"))
+		server.logger.Error(err.Error())
 		http.Error(res, "Указанный тип метрики не известен", http.StatusNotFound)
 		return
 	}
@@ -308,6 +323,8 @@ func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Req
 
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&request); err != nil {
+		err = fmt.Errorf("ошибка в JSON: %w", err)
+		server.logger.Error(err.Error())
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -318,6 +335,8 @@ func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Req
 	}
 
 	if err := server.storage.SaveMetrics(req.Context(), request); err != nil {
+		err = fmt.Errorf("ошибка при сохранении: передано:\n request \n %w", err)
+		server.logger.Error(err.Error())
 		http.Error(res, "error when saving to DB", http.StatusInternalServerError)
 		return
 	}
