@@ -23,7 +23,8 @@ func main() {
 
 	parseFlags()
 
-	if err := logger.Initialize(""); err != nil {
+	log, err := logger.Initialize("")
+	if err != nil {
 		panic(err)
 	}
 
@@ -36,7 +37,7 @@ func main() {
 		}
 		defer db.Close()
 
-		postgresStorage := postgres.NewPostgresStorage(db)
+		postgresStorage := postgres.NewPostgresStorage(db, log)
 		err = postgresStorage.Bootstrap(context.TODO())
 		if err != nil {
 			panic(err)
@@ -86,7 +87,7 @@ func main() {
 
 	router.Get("/ping", logger.WithLogging(gzipMiddleware(server.HandlePing)))
 
-	err := http.ListenAndServe(netAddress, router)
+	err = http.ListenAndServe(netAddress, router)
 	if err != nil {
 		panic(err)
 	}

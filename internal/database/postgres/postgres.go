@@ -11,14 +11,16 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/models"
+	"go.uber.org/zap"
 )
 
 type PostgresStorage struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *zap.Logger
 }
 
-func NewPostgresStorage(db *sql.DB) PostgresStorage {
-	return PostgresStorage{db: db}
+func NewPostgresStorage(db *sql.DB, logger *zap.Logger) PostgresStorage {
+	return PostgresStorage{db: db, logger: logger}
 }
 
 func (ps PostgresStorage) Bootstrap(ctx context.Context) error {
@@ -69,7 +71,8 @@ func (ps PostgresStorage) SetGauge(ctx context.Context, key string, value float6
 		}
 		retries++
 		if retries == 4 {
-			fmt.Println("ошибка соединения")
+			err = fmt.Errorf("ошибка при сохранении counter в бд: %s, %v, %w", key, value, err)
+			ps.logger.Error(err.Error())
 			return err
 		}
 		time.Sleep(time.Duration(retries*2+1) * time.Second) // Backoff: 1s, 3s, 5s
@@ -102,11 +105,14 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value *int
 			return nil
 		}
 		if !isRetriableError(err) {
+			err = fmt.Errorf("ошибка при сохранении counter в бд: %s,%v, %v, %w", key, value, *value, err)
+			ps.logger.Error(err.Error())
 			return err
 		}
 		retries++
 		if retries == 4 {
-			fmt.Println("ошибка соединения")
+			err = fmt.Errorf("ошибка при сохранении counter в бд: %s,%v, %v, %w", key, value, *value, err)
+			ps.logger.Error(err.Error())
 			return err
 		}
 		time.Sleep(time.Duration(retries*2+1) * time.Second) // Backoff: 1s, 3s, 5s
@@ -145,7 +151,8 @@ func (ps PostgresStorage) GetGauge(ctx context.Context, key string) (value float
 		}
 		retries++
 		if retries == 4 {
-			fmt.Println("ошибка соединения")
+			err = fmt.Errorf("ошибка при чтении gauge из бд: %s, %w", key, err)
+			ps.logger.Error(err.Error())
 			return
 		}
 		time.Sleep(time.Duration(retries*2+1) * time.Second) // Backoff: 1s, 3s, 5s
@@ -184,7 +191,8 @@ func (ps PostgresStorage) GetCounter(ctx context.Context, key string) (value int
 		}
 		retries++
 		if retries == 4 {
-			fmt.Println("ошибка соединения")
+			err = fmt.Errorf("ошибка при чтении counter из бд: %s, %w", key, err)
+			ps.logger.Error(err.Error())
 			return
 		}
 		time.Sleep(time.Duration(retries*2+1) * time.Second) // Backoff: 1s, 3s, 5s
@@ -216,7 +224,8 @@ func (ps PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 		}
 		retries++
 		if retries == 4 {
-			fmt.Println("ошибка соединения")
+			err = fmt.Errorf("ошибка при чтении метрик из бд: %w", err)
+			ps.logger.Error(err.Error())
 			return nil
 		}
 		time.Sleep(time.Duration(retries*2+1) * time.Second) // Backoff: 1s, 3s, 5s
@@ -266,7 +275,8 @@ func (ps PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 		}
 		retries++
 		if retries == 4 {
-			fmt.Println("ошибка соединения")
+			err = fmt.Errorf("ошибка при чтении метрик counter из бд: %w", err)
+			ps.logger.Error(err.Error())
 			return nil
 		}
 		time.Sleep(time.Duration(retries*2+1) * time.Second) // Backoff: 1s, 3s, 5s
@@ -315,7 +325,8 @@ func (ps PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
 		}
 		retries++
 		if retries == 4 {
-			fmt.Println("ошибка соединения")
+			err = fmt.Errorf("ошибка при чтении метрик из бд: %w", err)
+			ps.logger.Error(err.Error())
 			return nil
 		}
 		time.Sleep(time.Duration(retries*2+1) * time.Second) // Backoff: 1s, 3s, 5s
