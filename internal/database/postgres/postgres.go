@@ -392,11 +392,15 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 			}
 			_, err = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
 			if err != nil {
+				err = fmt.Errorf("ошибка при сохранении gauge в бд: %s, %v, %w", metric.ID, &metric.Value, err)
+				ps.logger.Error(err.Error())
 				return
 			}
 		case constants.Counter:
 			_, err = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
 			if err != nil {
+				err = fmt.Errorf("ошибка при сохранении counter в бд: %s, %v, %v, %w", metric.ID, &metric.Delta, metric.Delta, err)
+				ps.logger.Error(err.Error())
 				return
 			}
 		default:
