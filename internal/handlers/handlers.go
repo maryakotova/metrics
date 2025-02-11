@@ -335,7 +335,7 @@ func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Req
 	}
 
 	if err := server.storage.SaveMetrics(req.Context(), request); err != nil {
-		err = fmt.Errorf("ошибка при сохранении: передано:/n %v /n %w", request, err)
+		err = fmt.Errorf("ошибка при сохранении: %w", err)
 		server.logger.Error(err.Error())
 		http.Error(res, "error when saving to DB", http.StatusInternalServerError)
 		return

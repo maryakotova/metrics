@@ -153,8 +153,12 @@ func (ms *MemStorage) CheckConnection(ctx context.Context) (err error) {
 
 func (ms *MemStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error) {
 	for _, metric := range metrics {
+		var zero float64 = 0
 		switch metric.MType {
 		case constants.Gauge:
+			if metric.Value == nil {
+				metric.Value = &zero
+			}
 			if err = ms.SetGauge(ctx, metric.ID, *metric.Value); err != nil {
 				return err
 			}
