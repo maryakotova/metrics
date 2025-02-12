@@ -21,27 +21,6 @@ func main() {
 
 	parseFlags()
 
-	// n := int64(0)
-	// collector.SetPollCountInitial()
-
-	// for {
-	// 	time.Sleep(time.Duration(pollInterval) * time.Second)
-	// 	n += pollInterval
-
-	// 	metrics := collector.CollectMetricsForBatch()
-
-	// 	if len(metrics) > 0 {
-	// 		if reportInterval == n {
-	// 			n = 0
-	// 			collector.SetPollCountInitial()
-
-	// 			if err := sender.SendMetricsBatch(serverAddress, metrics); err != nil {
-	// 				fmt.Printf("Ошибка при отправке метрик: %s\n", err)
-	// 			}
-	// 		}
-	// 	}
-	// }
-
 	n := int64(0)
 	collector.SetPollCountInitial()
 
@@ -111,20 +90,6 @@ func main() {
 	// 			retries++
 
 	// 		}
-
-	// for metricName, metricValue := range metrics {
-	// 	var metricType string
-	// 	if metricName == constants.PollCount {
-	// 		metricType = constants.Counter
-	// 	} else {
-	// 		metricType = constants.Gauge
-	// 	}
-	// 	err := sender.SendMetric(serverAddress, metricType, metricName, metricValue)
-
-	// 	if err != nil {
-	// 		fmt.Printf("Ошибка при отправке метрики %s: %s\n", metricName, err)
-	// 	}
-	// }
 	// 	}
 	// }
 }

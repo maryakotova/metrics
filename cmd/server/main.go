@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/database/postgres"
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/handlers"
@@ -37,7 +38,7 @@ func main() {
 		}
 		defer db.Close()
 
-		postgresStorage := postgres.NewPostgresStorage(db, log)
+		postgresStorage := postgres.NewPostgresStorage(db, log, constants.RetryCount)
 		err = postgresStorage.Bootstrap(context.TODO())
 		if err != nil {
 			panic(err)

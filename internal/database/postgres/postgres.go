@@ -15,12 +15,13 @@ import (
 )
 
 type PostgresStorage struct {
-	db     *sql.DB
-	logger *zap.Logger
+	db         *sql.DB
+	logger     *zap.Logger
+	retryCount int
 }
 
-func NewPostgresStorage(db *sql.DB, logger *zap.Logger) PostgresStorage {
-	return PostgresStorage{db: db, logger: logger}
+func NewPostgresStorage(db *sql.DB, logger *zap.Logger, retryCount int) PostgresStorage {
+	return PostgresStorage{db: db, logger: logger, retryCount: retryCount}
 }
 
 func (ps PostgresStorage) Bootstrap(ctx context.Context) error {
@@ -58,7 +59,6 @@ func (ps PostgresStorage) SetGauge(ctx context.Context, key string, value float6
 	ON CONFLICT (id) DO UPDATE
 	SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;
 	`
-	// _, err = ps.db.ExecContext(ctx, query, key, constants.Gauge, value)
 
 	retries := 0
 	for retries < 4 {
@@ -92,7 +92,6 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value *int
 	ON CONFLICT (id) DO UPDATE
 	SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
 	`
-	// _, err = ps.db.ExecContext(ctx, query, key, constants.Counter, value)
 
 	retries := 0
 	for retries < 4 {
@@ -125,14 +124,6 @@ func (ps PostgresStorage) GetGauge(ctx context.Context, key string) (value float
 	query := `
 	SELECT value FROM metrics WHERE id = $1 AND mtype = $2;
 	`
-	// row := ps.db.QueryRowContext(ctx, query, key, constants.Gauge)
-	// if err = row.Scan(&value); err != nil {
-	// 	if errors.Is(err, sql.ErrNoRows) {
-	// 		err = fmt.Errorf("значение метрики %s типа gauge не найдено", key)
-	// 	} else {
-	// 		err = fmt.Errorf("ошибка при сканировании значения: %v", err)
-	// 	}
-	// }
 
 	retries := 0
 	for retries < 4 {
@@ -165,14 +156,6 @@ func (ps PostgresStorage) GetCounter(ctx context.Context, key string) (value int
 	query := `
 	SELECT delta FROM metrics WHERE id = $1 AND mtype = $2;
 	`
-	// row := ps.db.QueryRowContext(ctx, query, key, constants.Counter)
-	// if err = row.Scan(&value); err != nil {
-	// 	if err == sql.ErrNoRows {
-	// 		err = fmt.Errorf("значение метрики %s типа counter не найдено", key)
-	// 	} else {
-	// 		err = fmt.Errorf("ошибка при сканировании значения: %v", err)
-	// 	}
-	// }
 
 	retries := 0
 	for retries < 4 {
@@ -183,7 +166,7 @@ func (ps PostgresStorage) GetCounter(ctx context.Context, key string) (value int
 		}
 		if !isRetriableError(err) {
 			if errors.Is(err, sql.ErrNoRows) {
-				err = fmt.Errorf("значение метрики %s типа gauge не найдено (%w)", key, err)
+				err = fmt.Errorf("значение метрики %s типа counter не найдено (%w)", key, err)
 				return
 			}
 			err = fmt.Errorf("ошибка при сканировании значения: %w", err)
@@ -205,10 +188,6 @@ func (ps PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 	query := `
 	SELECT id, value FROM metrics WHERE mtype = $1
 	`
-	// rows, err := ps.db.QueryContext(ctx, query, constants.Gauge)
-	// if err != nil {
-	// 	return nil
-	// }
 
 	var rows *sql.Rows
 	var err error
@@ -256,10 +235,6 @@ func (ps PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 	query := `
 	SELECT id, delta FROM metrics WHERE mtype = $1
 	`
-	// rows, err := ps.db.QueryContext(ctx, query, constants.Counter)
-	// if err != nil {
-	// 	return nil
-	// }
 
 	var rows *sql.Rows
 	var err error
@@ -307,10 +282,6 @@ func (ps PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
 	query := `
 	SELECT id, delta FROM metrics
 	`
-	// rows, err := ps.db.QueryContext(ctx, query)
-	// if err != nil {
-	// 	return nil
-	// }
 	var rows *sql.Rows
 	var err error
 
@@ -358,11 +329,11 @@ func (ps PostgresStorage) CheckConnection(ctx context.Context) (err error) {
 	return ps.db.PingContext(context)
 }
 
-func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error) {
+func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
 	tx, err := ps.db.Begin()
 	if err != nil {
 		err = fmt.Errorf("failed to start transaction")
-		return
+		return err
 	}
 	defer tx.Rollback()
 
@@ -378,37 +349,51 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 	ON CONFLICT (id) DO UPDATE
 	SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
 	`
+	for i := 0; i <= ps.retryCount; i++ {
 
-	for _, metric := range metrics {
-		if metric.ID == "" {
-			err = fmt.Errorf("ошибка при сохранении в БД. Пустое имя метрики: %v", metric)
-			return
+		var error error
+
+		for _, metric := range metrics {
+			if metric.ID == "" {
+				error = fmt.Errorf("ошибка при сохранении в БД. Пустое имя метрики: %v", metric)
+				break
+			}
+			var zero float64 = 0
+			switch metric.MType {
+			case constants.Gauge:
+				if metric.Value == nil {
+					metric.Value = &zero
+				}
+				_, error = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
+				if error != nil {
+					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %w", metric.MType, metric.ID, &metric.Value, error)
+				}
+			case constants.Counter:
+				_, error = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
+				if error != nil {
+					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %v, %w", metric.MType, metric.ID, &metric.Delta, metric.Delta, error)
+				}
+			default:
+				error = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
+			}
+			if error != nil {
+				break
+			}
 		}
-		var zero float64 = 0
-		switch metric.MType {
-		case constants.Gauge:
-			if metric.Value == nil {
-				metric.Value = &zero
-			}
-			_, err = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
-			if err != nil {
-				err = fmt.Errorf("ошибка при сохранении gauge в бд: %s, %v, %w", metric.ID, &metric.Value, err)
-				ps.logger.Error(err.Error())
-				return
-			}
-		case constants.Counter:
-			_, err = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
-			if err != nil {
-				err = fmt.Errorf("ошибка при сохранении counter в бд: %s, %v, %v, %w", metric.ID, &metric.Delta, metric.Delta, err)
-				ps.logger.Error(err.Error())
-				return
-			}
-		default:
-			err = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
-			return
+		if error == nil {
+			return nil
 		}
+		if !isRetriableError(err) {
+			ps.logger.Error(error.Error())
+			return error
+		}
+		if i == ps.retryCount {
+			ps.logger.Error(error.Error())
+			return error
+		}
+		time.Sleep(time.Duration(i*2+1) * time.Second) // Backoff: 1s, 3s, 5s
+
 	}
-
 	return tx.Commit()
 }
 
