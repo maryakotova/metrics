@@ -381,7 +381,7 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 			}
 		}
 		if error == nil {
-			return nil
+			break
 		}
 		if !isRetriableError(err) {
 			ps.logger.Error(error.Error())
