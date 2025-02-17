@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/maryakotova/metrics/internal/constants"
+	"github.com/maryakotova/metrics/internal/controller"
 	"github.com/maryakotova/metrics/internal/database/postgres"
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/handlers"
@@ -29,6 +30,8 @@ func main() {
 		panic(err)
 	}
 
+	var ctrl *controller.Controller
+
 	var server *handlers.Server
 
 	if dbDsn != "" {
@@ -44,7 +47,8 @@ func main() {
 			panic(err)
 		}
 
-		server = handlers.NewServer(postgresStorage, false, nil, log)
+		ctrl = controller.NewController(postgresStorage, log)
+		server = handlers.NewServer(false, nil, log, ctrl)
 	}
 
 	if filePath != "" {
@@ -71,7 +75,8 @@ func main() {
 			worker.TriggerGoFunc(ticker, task)
 		}
 
-		server = handlers.NewServer(memStorage, syncFileWrite, writer, log)
+		ctrl = controller.NewController(memStorage, log)
+		server = handlers.NewServer(syncFileWrite, writer, log, ctrl)
 	}
 
 	router := chi.NewRouter()

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,38 +8,43 @@ import (
 	"text/template"
 
 	"github.com/maryakotova/metrics/internal/constants"
+	"github.com/maryakotova/metrics/internal/controller"
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/models"
 	"go.uber.org/zap"
 )
 
-const tplPath string = "./templates/metrics.html"
+// const tplPath string = "./templates/metrics.html"
+const tplPath string = "templates/metrics.html"
 
-type DataStorage interface {
-	SetGauge(ctx context.Context, key string, value float64) (err error)
-	SetCounter(ctx context.Context, key string, value *int64) (err error)
-	SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error)
-	//GetAll(ctx context.Context) map[string]interface{}
-	GetAllGauge(ctx context.Context) map[string]float64
-	GetAllCounter(ctx context.Context) map[string]int64
-	GetGauge(ctx context.Context, key string) (value float64, err error)
-	GetCounter(ctx context.Context, key string) (value int64, err error)
-	CheckConnection(ctx context.Context) (err error)
-}
+// type DataStorage interface {
+// 	SetGauge(ctx context.Context, key string, value float64) (err error)
+// 	SetCounter(ctx context.Context, key string, value *int64) (err error)
+// 	SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error)
+// 	GetAllGauge(ctx context.Context) map[string]float64
+// 	GetAllCounter(ctx context.Context) map[string]int64
+// 	GetGauge(ctx context.Context, key string) (value float64, err error)
+// 	GetCounter(ctx context.Context, key string) (value int64, err error)
+// 	CheckConnection(ctx context.Context) (err error)
+// }
+
+// ----------------------------------------------------------------------
+//fileWriter должен остаться в сервере? или перейти в контроллер?
+// ----------------------------------------------------------------------
 
 type Server struct {
-	storage       DataStorage
 	syncFileWrite bool
 	fileWriter    *filetransfer.FileWriter
 	logger        *zap.Logger
+	controller    *controller.Controller
 }
 
-func NewServer(storage DataStorage, syncFileWrite bool, fileWriter *filetransfer.FileWriter, logger *zap.Logger) *Server {
+func NewServer(syncFileWrite bool, fileWriter *filetransfer.FileWriter, logger *zap.Logger, controller *controller.Controller) *Server {
 	return &Server{
-		storage:       storage,
 		syncFileWrite: syncFileWrite,
 		fileWriter:    fileWriter,
 		logger:        logger,
+		controller:    controller,
 	}
 }
 
@@ -54,49 +58,34 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&request); err != nil {
+		err = fmt.Errorf("ошибка в JSON: %w", err)
+		server.logger.Error(err.Error())
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if request.ID == "" {
-		http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
+	statusCode, err := server.controller.UpdateMetric(req.Context(), request)
+	if err != nil {
+		if statusCode == 0 {
+			statusCode = http.StatusInternalServerError
+		}
+		http.Error(res, err.Error(), statusCode)
 		return
 	}
 
-	responce := models.Metrics{
-		ID:    request.ID,
-		MType: request.MType,
-	}
-
-	switch request.MType {
-	case constants.Gauge:
-		if err := server.storage.SetGauge(req.Context(), request.ID, *request.Value); err != nil {
-			http.Error(res, "Ошибка при обновлении метрики Gauge", http.StatusBadRequest)
-			return
-		}
-		responce.Value = request.Value
-	case constants.Counter:
-		if err := server.storage.SetCounter(req.Context(), request.ID, request.Delta); err != nil {
-			fmt.Printf("значения: %s, %v, %v, %s", request.ID, request.Delta, *request.Delta, err)
-			http.Error(res, "Ошибка при обновлении метрики Counter", http.StatusBadRequest)
-			return
-		}
-		responce.Delta = request.Delta
-	default:
-		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
-		return
-	}
+	responce := request
 
 	res.Header().Set("Content-Type", "Content-Type: application/json")
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(responce); err != nil {
-		http.Error(res, "Ошибка при заполнении ответа", http.StatusInternalServerError)
+		err = fmt.Errorf("ошибка при заполнении ответа: %w", err)
+		server.logger.Error(err.Error())
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	res.WriteHeader(http.StatusOK)
-	// fmt.Printf("Responce: %v\n", responce)
 
 	if server.syncFileWrite {
 		server.fileWriter.WriteMetric(&responce)
@@ -109,17 +98,24 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	res.Header().Set("Content-Type", "Content-Type: application/json")
-
 	metricType := req.PathValue("metricType")
 	metricName := req.PathValue("metricName")
 	metricValue := req.PathValue("metricValue")
 
-	if metricName == "" {
-		http.Error(res, "Невозможно обновить метрику(пустое имя или значение метрики)", http.StatusNotFound)
+	statusCode, err := server.controller.UpdateMetricFromString(req.Context(), metricType, metricName, metricValue)
+	if err != nil {
+		if statusCode == 0 {
+			statusCode = http.StatusInternalServerError
+		}
+		http.Error(res, err.Error(), statusCode)
 		return
 	}
 
+	res.Header().Set("Content-Type", "Content-Type: application/json")
+
+	// ----------------------------------------------------------------------
+	//как правильно заполнить responce в данной ситуации (value и delta) ?
+	// ----------------------------------------------------------------------
 	responce := models.Metrics{
 		ID:    metricName,
 		MType: metricType,
@@ -128,38 +124,21 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	switch metricType {
 	case constants.Gauge:
 		value, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
-			return
+		if err == nil {
+			responce.Value = &value
 		}
-		err = server.storage.SetGauge(req.Context(), metricName, value)
-		if err != nil {
-			http.Error(res, "Неверный формат значения для обновления метрики Gauge", http.StatusBadRequest)
-			return
-		}
-		responce.Value = &value
-
 	case constants.Counter:
 		value, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
-			return
+		if err == nil {
+			responce.Delta = &value
 		}
-		err = server.storage.SetCounter(req.Context(), metricName, &value)
-		if err != nil {
-			http.Error(res, "Неверный формат значения для обновления метрик Counter", http.StatusBadRequest)
-			return
-		}
-		responce.Delta = &value
-
-	default:
-		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
-		return
 	}
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(responce); err != nil {
-		http.Error(res, "Ошибка при заполнении ответа", http.StatusInternalServerError)
+		err = fmt.Errorf("ошибка при заполнении ответа: %w", err)
+		server.logger.Error(err.Error())
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -178,38 +157,20 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 	var request models.Metrics
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&request); err != nil {
+		err = fmt.Errorf("ошибка в JSON: %w", err)
+		server.logger.Error(err.Error())
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	responce := models.Metrics{
-		ID:    request.ID,
-		MType: request.MType,
-	}
+	responce := request
 
-	switch request.MType {
-	case constants.Gauge:
-		gaugeValue, err := server.storage.GetGauge(req.Context(), request.ID)
-		if err != nil {
-			err = fmt.Errorf("ошибка при чтении gauge: %s, %s, %w", request.ID, request.MType, err)
-			server.logger.Error(err.Error())
-			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
-			return
+	statusCode, err := server.controller.GetOneMetric(req.Context(), &responce)
+	if err != nil {
+		if statusCode == 0 {
+			statusCode = http.StatusInternalServerError
 		}
-		responce.Value = &gaugeValue
-	case constants.Counter:
-		counterValue, err := server.storage.GetCounter(req.Context(), request.ID)
-		if err != nil {
-			err = fmt.Errorf("ошибка при чтении counter: %s, %s, %w", request.ID, request.MType, err)
-			server.logger.Error(err.Error())
-			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
-			return
-		}
-		responce.Delta = &counterValue
-	default:
-		err := fmt.Errorf("ошибка при чтении неизвестного типа метрики: %s, %s", req.PathValue("metricName"), req.PathValue("metricType"))
-		server.logger.Error(err.Error())
-		http.Error(res, "Неверный формат для обновления метрик (неверный тип)", http.StatusBadRequest)
+		http.Error(res, err.Error(), statusCode)
 		return
 	}
 
@@ -217,12 +178,12 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(responce); err != nil {
-		http.Error(res, "Ошибка при заполнении ответа", http.StatusInternalServerError)
+		err = fmt.Errorf("ошибка при заполнении ответа: %w", err)
+		server.logger.Error(err.Error())
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	res.WriteHeader(http.StatusOK)
-	fmt.Printf("Responce: %v\n", responce)
-
 }
 
 func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Request) {
@@ -233,39 +194,26 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 
 	res.Header().Set("Content-Type", "text/plain")
 
-	// switch chi.URLParam(req, "type") { !!!Почему не работает??????
-	switch req.PathValue("metricType") {
+	data := models.Metrics{}
+	data.ID = req.PathValue("metricName")
+	data.MType = req.PathValue("metricType")
+
+	statusCode, err := server.controller.GetOneMetric(req.Context(), &data)
+	if err != nil {
+		if statusCode == 0 {
+			statusCode = http.StatusInternalServerError
+		}
+		http.Error(res, err.Error(), statusCode)
+		return
+	}
+
+	switch data.MType {
 	case constants.Gauge:
-		metricValue, err := server.storage.GetGauge(req.Context(), req.PathValue("metricName"))
-		if err != nil {
-			err = fmt.Errorf("ошибка при чтении gauge: %s, %s, %w", req.PathValue("metricName"), req.PathValue("metricType"), err)
-			server.logger.Error(err.Error())
-			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
-			return
-		}
 		res.WriteHeader(http.StatusOK)
-		res.Write([]byte(strconv.FormatFloat(metricValue, 'f', -1, 64)))
-
+		res.Write([]byte(strconv.FormatFloat(*data.Value, 'f', -1, 64)))
 	case constants.Counter:
-		metricValue, err := server.storage.GetCounter(req.Context(), req.PathValue("metricName"))
-		if err != nil {
-			err = fmt.Errorf("ошибка при чтении counter: %s, %s, %w", req.PathValue("metricName"), req.PathValue("metricType"), err)
-			server.logger.Error(err.Error())
-			http.Error(res, "Запрос неизвестной метрики", http.StatusNotFound)
-			return
-		}
 		res.WriteHeader(http.StatusOK)
-		res.Write([]byte(strconv.FormatInt(metricValue, 10)))
-
-	case "":
-		http.Error(res, "Тип метрики обязателен для заполнения", http.StatusBadRequest)
-		return
-
-	default:
-		err := fmt.Errorf("ошибка при чтении неизвестного типа метрики: %s, %s", req.PathValue("metricName"), req.PathValue("metricType"))
-		server.logger.Error(err.Error())
-		http.Error(res, "Указанный тип метрики не известен", http.StatusNotFound)
-		return
+		res.Write([]byte(strconv.FormatInt(*data.Delta, 10)))
 	}
 }
 
@@ -280,17 +228,22 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 	data := struct {
 		IntMap   map[string]int64
 		FloatMap map[string]float64
-	}{IntMap: server.storage.GetAllCounter(req.Context()), FloatMap: server.storage.GetAllGauge(req.Context())}
+	}{IntMap: server.controller.GetAllCounter(req.Context()), FloatMap: server.controller.GetAllGauge(req.Context())}
 
 	tmpl, err := template.ParseFiles(tplPath)
 	if err != nil {
-		http.Error(res, "Error parsing template", http.StatusInternalServerError)
+		err = fmt.Errorf("error parsing template: %w", err)
+		server.logger.Error(err.Error())
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	err = tmpl.Execute(res, data)
 	if err != nil {
-		http.Error(res, "Error executing template", http.StatusInternalServerError)
+		err = fmt.Errorf("error executing template: %w", err)
+		server.logger.Error(err.Error())
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	res.WriteHeader(http.StatusOK)
@@ -304,7 +257,8 @@ func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain")
 
-	if err := server.storage.CheckConnection(req.Context()); err != nil {
+	if err := server.controller.CheckConnection(req.Context()); err != nil {
+		server.logger.Error(err.Error())
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -334,10 +288,14 @@ func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Req
 		return
 	}
 
-	if err := server.storage.SaveMetrics(req.Context(), request); err != nil {
+	statusCode, err := server.controller.SaveMetrics(req.Context(), request)
+	if err != nil {
+		if statusCode == 0 {
+			statusCode = http.StatusInternalServerError
+		}
 		err = fmt.Errorf("ошибка при сохранении: %w", err)
 		server.logger.Error(err.Error())
-		http.Error(res, "error when saving to DB", http.StatusInternalServerError)
+		http.Error(res, err.Error(), statusCode)
 		return
 	}
 
