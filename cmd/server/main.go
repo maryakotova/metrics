@@ -1,20 +1,17 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/maryakotova/metrics/internal/constants"
+	"github.com/maryakotova/metrics/internal/config"
 	"github.com/maryakotova/metrics/internal/controller"
-	"github.com/maryakotova/metrics/internal/database/postgres"
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/handlers"
-	"github.com/maryakotova/metrics/internal/inmemory"
 	"github.com/maryakotova/metrics/internal/logger"
 	"github.com/maryakotova/metrics/internal/middleware"
+	"github.com/maryakotova/metrics/internal/storage"
 	"github.com/maryakotova/metrics/internal/worker"
 
 	"github.com/go-chi/chi/v5"
@@ -23,61 +20,97 @@ import (
 
 func main() {
 
-	parseFlags()
+	flags, err := config.ParseFlags()
+	if err != nil {
+		panic(err)
+	}
 
 	log, err := logger.Initialize("")
 	if err != nil {
 		panic(err)
 	}
 
-	var ctrl *controller.Controller
+	config := config.NewConfig(flags)
 
-	var server *handlers.Server
+	factory := &storage.StorageFactory{}
 
-	if dbDsn != "" {
-		db, err := sql.Open("pgx", dbDsn)
-		if err != nil {
-			panic(err)
-		}
-		defer db.Close()
-
-		postgresStorage := postgres.NewPostgresStorage(db, log, constants.RetryCount)
-		err = postgresStorage.Bootstrap(context.TODO())
-		if err != nil {
-			panic(err)
-		}
-
-		ctrl = controller.NewController(postgresStorage, log)
-		server = handlers.NewServer(false, nil, log, ctrl)
+	storage, err := factory.NewStorage(config, log)
+	if err != nil {
+		panic(err)
 	}
 
-	if filePath != "" {
-		memStorage := inmemory.NewMemStorage()
-		if restore {
-			memStorage.UploadData(filePath)
-		}
-		writer, err := filetransfer.NewFileWriter(filePath)
+	controller := controller.NewController(storage, log)
+
+	var writer *filetransfer.FileWriter
+
+	if config.IsStoreInFileEnabled() {
+		writer, err = filetransfer.NewFileWriter(config.Server.FileStoragePath)
 		if err != nil {
 			panic(err)
 		}
 		defer writer.Close()
-
-		var syncFileWrite bool
-		if interval == 0 {
-			syncFileWrite = true
-		} else {
-			ticker := time.NewTicker(time.Duration(interval) * time.Second)
-			defer ticker.Stop()
-			task := func() {
-				metrics := memStorage.GetAllMetricsInJSON()
-				writer.WriteMetrics(metrics...)
-			}
-			worker.TriggerGoFunc(ticker, task)
-		}
-
-		ctrl = controller.NewController(memStorage, log)
-		server = handlers.NewServer(syncFileWrite, writer, log, ctrl)
 	}
+
+	server := handlers.NewServer(config, writer, log, controller)
+
+	if !config.IsSyncStore() && !config.IsStoreInFileEnabled() {
+		ticker := time.NewTicker(time.Duration(config.Server.StoreInterval) * time.Second)
+		defer ticker.Stop()
+		task := func() {
+			metrics := storage.GetAllMetricsInJSON()
+			writer.WriteMetrics(metrics...)
+		}
+		worker.TriggerGoFunc(ticker, task)
+	}
+
+	// var ctrl *controller.Controller
+
+	// var server *handlers.Server
+
+	// if dbDsn != "" {
+	// 	db, err := sql.Open("pgx", dbDsn)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	defer db.Close()
+
+	// 	postgresStorage := postgres.NewPostgresStorage(db, log, constants.RetryCount)
+	// 	err = postgresStorage.Bootstrap(context.TODO())
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+
+	// 	ctrl = controller.NewController(postgresStorage, log)
+	// 	server = handlers.NewServer(false, nil, log, ctrl)
+	// }
+
+	// if filePath != "" {
+	// 	memStorage := inmemory.NewMemStorage()
+	// 	if restore {
+	// 		memStorage.UploadData(filePath)
+	// 	}
+	// 	writer, err := filetransfer.NewFileWriter(filePath)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	defer writer.Close()
+
+	// 	var syncFileWrite bool
+	// 	if interval == 0 {
+	// 		syncFileWrite = true
+	// 	} else {
+	// 		ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	// 		defer ticker.Stop()
+	// 		task := func() {
+	// 			metrics := memStorage.GetAllMetricsInJSON()
+	// 			writer.WriteMetrics(metrics...)
+	// 		}
+	// 		worker.TriggerGoFunc(ticker, task)
+	// 	}
+
+	// 	ctrl = controller.NewController(memStorage, log)
+	// 	server = handlers.NewServer(syncFileWrite, writer, log, ctrl)
+	// }
 
 	router := chi.NewRouter()
 	router.Use()
@@ -93,7 +126,7 @@ func main() {
 
 	router.Get("/ping", logger.WithLogging(gzipMiddleware(server.HandlePing)))
 
-	err = http.ListenAndServe(netAddress, router)
+	err = http.ListenAndServe(config.Server.ServerAddress, router)
 	if err != nil {
 		panic(err)
 	}

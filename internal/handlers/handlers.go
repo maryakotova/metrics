@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"text/template"
 
+	"github.com/maryakotova/metrics/internal/config"
 	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/controller"
 	"github.com/maryakotova/metrics/internal/filetransfer"
@@ -33,18 +34,18 @@ const tplPath string = "templates/metrics.html"
 // ----------------------------------------------------------------------
 
 type Server struct {
-	syncFileWrite bool
-	fileWriter    *filetransfer.FileWriter
-	logger        *zap.Logger
-	controller    *controller.Controller
+	config     *config.Config
+	fileWriter *filetransfer.FileWriter
+	logger     *zap.Logger
+	controller *controller.Controller
 }
 
-func NewServer(syncFileWrite bool, fileWriter *filetransfer.FileWriter, logger *zap.Logger, controller *controller.Controller) *Server {
+func NewServer(cfg *config.Config, fileWriter *filetransfer.FileWriter, logger *zap.Logger, controller *controller.Controller) *Server {
 	return &Server{
-		syncFileWrite: syncFileWrite,
-		fileWriter:    fileWriter,
-		logger:        logger,
-		controller:    controller,
+		config:     cfg,
+		fileWriter: fileWriter,
+		logger:     logger,
+		controller: controller,
 	}
 }
 
@@ -87,7 +88,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 
 	res.WriteHeader(http.StatusOK)
 
-	if server.syncFileWrite {
+	if server.config.IsSyncStore() {
 		server.fileWriter.WriteMetrics(responce)
 	}
 }
@@ -143,7 +144,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	}
 
 	res.WriteHeader(http.StatusOK)
-	if server.syncFileWrite {
+	if server.config.IsSyncStore() {
 		server.fileWriter.WriteMetrics(responce)
 	}
 }

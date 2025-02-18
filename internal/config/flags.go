@@ -1,68 +1,64 @@
 package config
 
-// import (
-// 	"flag"
-// 	"log"
+import (
+	"flag"
+	"os"
+	"strconv"
+)
 
-// 	"github.com/caarlos0/env"
-// )
+type Flags struct {
+	Server struct {
+		ServerAddress   string //`env:"ADDRESS"`
+		StoreInterval   int64  //`env:"STORE_INTERVAL"`
+		FileStoragePath string //`env:"FILE_STORAGE_PATH"`
+		Restore         bool   //`env:"RESTORE"`
+	}
+	Database struct {
+		DatabaseDsn string //`env:"DATABASE_DSN"`
+	}
+}
 
-// var netAddress string
-// var interval int64
-// var filePath string
-// var restore bool
-// var dbDsn string
+func ParseFlags() (*Flags, error) {
 
-// type Flags struct {
-// 	Server struct {
-// 		ServerAddress   string `env:"ADDRESS"`
-// 		StoreInterval   int64  `env:"STORE_INTERVAL"`
-// 		FileStoragePath string `env:"FILE_STORAGE_PATH"`
-// 		Restore         bool   `env:"RESTORE"`
-// 	}
-// 	Database struct {
-// 		DatabaseDsn string `env:"DATABASE_DSN"`
-// 	}
-// }
+	var flags Flags
+	var err error
 
-// func parseFlags() {
+	flag.StringVar(&flags.Server.ServerAddress, "a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
+	flag.Int64Var(&flags.Server.StoreInterval, "i", 300, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
+	flag.StringVar(&flags.Server.FileStoragePath, "f", "./metricsStorage.json", "Путь до файла, куда сохраняются текущие значения")
+	flag.BoolVar(&flags.Server.Restore, "r", true, "Загрузка ранее сохранённые значения из указанного файла при старте сервера")
+	flag.StringVar(&flags.Database.DatabaseDsn, "d", "", "Строка c адресом подключения к БД") //"host=localhost user=metrics password=test dbname=metrics sslmode=disable"
 
-// 	var flags Flags
+	//аргументы командной строки
+	flag.Parse()
 
-// 	// переменные окружения
-// 	err := env.Parse(&flags)
+	// переменные окружения
+	if envNetAddr := os.Getenv("ADDRESS"); envNetAddr != "" {
+		flags.Server.ServerAddress = envNetAddr
+	}
 
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
+	if envInterval := os.Getenv("STORE_INTERVAL"); envInterval != "" {
+		flags.Server.StoreInterval, err = strconv.ParseInt(envInterval, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-// 	flag.StringVar(&netAddress, "a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
-// 	flag.Int64Var(&interval, "i", 300, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
-// 	flag.StringVar(&filePath, "f", "./metricsStorage.json", "Путь до файла, куда сохраняются текущие значения")
-// 	flag.BoolVar(&restore, "r", true, "Загрузка ранее сохранённые значения из указанного файла при старте сервера")
-// 	flag.StringVar(&dbDsn, "d", "", "Строка c адресом подключения к БД") //"host=localhost user=metrics password=test dbname=metrics sslmode=disable"
+	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
+		flags.Server.FileStoragePath = envFilePath
+	}
 
-// 	//аргументы командной строки
-// 	flag.Parse()
+	if envRestore := os.Getenv("RESTORE"); envRestore != "" {
+		flags.Server.Restore, err = strconv.ParseBool(envRestore)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-// 	if flags.Server.ServerAddress != "" {
-// 		netAddress = flags.Server.ServerAddress
-// 	}
-// 	if flags.Server.StoreInterval != 0 {
-// 		interval = flags.Server.StoreInterval
-// 	}
-// 	if flags.Server.FileStoragePath != "" {
-// 		filePath = flags.Server.FileStoragePath
-// 	}
-// 	if flags.Server.Restore {
-// 		restore = flags.Server.Restore
-// 	}
-// 	if flags.Database.DatabaseDsn != "" {
-// 		dbDsn = flags.Database.DatabaseDsn
-// 	}
+	if envDSN := os.Getenv("DATABASE_DSN"); envDSN != "" {
+		flags.Database.DatabaseDsn = envDSN
+	}
 
-// 	// если данные сохраняются в БД, путь к файлу для сохранения данных не требуется
-// 	if dbDsn != "" {
-// 		filePath = ""
-// 	}
-// }
+	return &flags, nil
+
+}

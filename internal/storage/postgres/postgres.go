@@ -9,19 +9,35 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
+	"github.com/maryakotova/metrics/internal/config"
 	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/models"
 	"go.uber.org/zap"
 )
 
 type PostgresStorage struct {
-	db         *sql.DB
-	logger     *zap.Logger
-	retryCount int
+	db     *sql.DB
+	config *config.Config
+	logger *zap.Logger
 }
 
-func NewPostgresStorage(db *sql.DB, logger *zap.Logger, retryCount int) PostgresStorage {
-	return PostgresStorage{db: db, logger: logger, retryCount: retryCount}
+//------------------------------------------------------------------------------------
+// нужно ли при таком создании конекшен вызывать defer db.Close(), если да, то где?
+//------------------------------------------------------------------------------------
+
+func NewPostgresStorage(cfg *config.Config, logger *zap.Logger) (*PostgresStorage, error) {
+	db, err := sql.Open("pgx", cfg.Database.DatabaseDsn)
+	if err != nil {
+		// можно ли тут вызывать панику? ----------------------------------------
+		err = fmt.Errorf("не удалось подключиться к бд: %w", err)
+		logger.Error(err.Error())
+		return nil, err
+	}
+	return &PostgresStorage{
+		db:     db,
+		config: cfg,
+		logger: logger,
+	}, nil
 }
 
 func (ps PostgresStorage) Bootstrap(ctx context.Context) error {
@@ -349,7 +365,7 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 	ON CONFLICT (id) DO UPDATE
 	SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
 	`
-	for i := 0; i <= ps.retryCount; i++ {
+	for i := 0; i <= ps.config.GetRetryCount(); i++ {
 
 		var error error
 
@@ -387,7 +403,7 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 			ps.logger.Error(error.Error())
 			return error
 		}
-		if i == ps.retryCount {
+		if i == ps.config.GetRetryCount() {
 			ps.logger.Error(error.Error())
 			return error
 		}
@@ -395,6 +411,11 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 
 	}
 	return tx.Commit()
+}
+
+func (ps PostgresStorage) GetAllMetricsInJSON() []models.Metrics {
+	metrics := []models.Metrics{}
+	return metrics
 }
 
 func isRetriableError(err error) bool {

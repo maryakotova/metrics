@@ -1,0 +1,42 @@
+package storage
+
+import (
+	"context"
+
+	"github.com/maryakotova/metrics/internal/config"
+	"github.com/maryakotova/metrics/internal/models"
+	"github.com/maryakotova/metrics/internal/storage/inmemory"
+	"github.com/maryakotova/metrics/internal/storage/postgres"
+	"go.uber.org/zap"
+)
+
+type Storage interface {
+	SetGauge(ctx context.Context, key string, value float64) (err error)
+	SetCounter(ctx context.Context, key string, value *int64) (err error)
+	SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error)
+	GetAllGauge(ctx context.Context) map[string]float64
+	GetAllCounter(ctx context.Context) map[string]int64
+	GetGauge(ctx context.Context, key string) (value float64, err error)
+	GetCounter(ctx context.Context, key string) (value int64, err error)
+	CheckConnection(ctx context.Context) (err error)
+	GetAllMetricsInJSON() []models.Metrics
+}
+
+type StorageFactory struct{}
+
+func (f *StorageFactory) NewStorage(cfg *config.Config, logger *zap.Logger) (Storage, error) {
+	if cfg.IsDatabaseEnabled() {
+		postgres, err := postgres.NewPostgresStorage(cfg, logger)
+		if err != nil {
+			return nil, err
+		}
+		err = postgres.Bootstrap(context.TODO())
+		return postgres, err
+	} else {
+		inmemory := inmemory.NewMemStorage()
+		if cfg.IsRestoreEnabled() {
+			inmemory.UploadData(cfg.Server.FileStoragePath)
+		}
+		return inmemory, nil
+	}
+}
