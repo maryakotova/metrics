@@ -72,13 +72,13 @@ func (fw *FileWriter) Close() error {
 	return fw.file.Close()
 }
 
-func (fw *FileWriter) WriteMetrics(metrics *[]models.Metrics) error {
+func (fw *FileWriter) WriteMetrics(metrics ...*models.Metrics) error {
 
-	if len(*metrics) == 0 {
+	if len(metrics) == 0 {
 		return nil
 	}
 
-	for _, value := range *metrics {
+	for _, value := range metrics {
 		data, err := json.Marshal(value)
 		if err != nil {
 			return err
@@ -93,17 +93,38 @@ func (fw *FileWriter) WriteMetrics(metrics *[]models.Metrics) error {
 	return fw.writer.Flush()
 }
 
-func (fw *FileWriter) WriteMetric(metric *models.Metrics) error {
-	data, err := json.Marshal(metric)
-	if err != nil {
-		return err
-	}
-	if _, err := fw.writer.Write(data); err != nil {
-		return err
-	}
-	if err := fw.writer.WriteByte('\n'); err != nil {
-		return err
-	}
+// func (fw *FileWriter) WriteMetrics(metrics *[]models.Metrics) error {
 
-	return fw.writer.Flush()
-}
+// 	if len(*metrics) == 0 {
+// 		return nil
+// 	}
+
+// 	for _, value := range *metrics {
+// 		data, err := json.Marshal(value)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if _, err := fw.writer.Write(data); err != nil {
+// 			return err
+// 		}
+// 		if err := fw.writer.WriteByte('\n'); err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return fw.writer.Flush()
+// }
+
+// func (fw *FileWriter) WriteMetric(metric *models.Metrics) error {
+// 	data, err := json.Marshal(metric)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if _, err := fw.writer.Write(data); err != nil {
+// 		return err
+// 	}
+// 	if err := fw.writer.WriteByte('\n'); err != nil {
+// 		return err
+// 	}
+
+// 	return fw.writer.Flush()
+// }
