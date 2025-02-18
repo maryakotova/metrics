@@ -70,7 +70,7 @@ func main() {
 			defer ticker.Stop()
 			task := func() {
 				metrics := memStorage.GetAllMetricsInJSON()
-				writer.WriteMetrics(&metrics)
+				writer.WriteMetrics(metrics...)
 			}
 			worker.TriggerGoFunc(ticker, task)
 		}

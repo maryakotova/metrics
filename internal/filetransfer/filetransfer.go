@@ -72,7 +72,7 @@ func (fw *FileWriter) Close() error {
 	return fw.file.Close()
 }
 
-func (fw *FileWriter) WriteMetrics(metrics ...*models.Metrics) error {
+func (fw *FileWriter) WriteMetrics(metrics ...models.Metrics) error {
 
 	if len(metrics) == 0 {
 		return nil

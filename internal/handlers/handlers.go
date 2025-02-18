@@ -88,7 +88,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 	res.WriteHeader(http.StatusOK)
 
 	if server.syncFileWrite {
-		server.fileWriter.WriteMetrics(&responce)
+		server.fileWriter.WriteMetrics(responce)
 	}
 }
 
@@ -144,7 +144,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 
 	res.WriteHeader(http.StatusOK)
 	if server.syncFileWrite {
-		server.fileWriter.WriteMetrics(&responce)
+		server.fileWriter.WriteMetrics(responce)
 	}
 }
 
