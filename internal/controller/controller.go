@@ -12,7 +12,7 @@ import (
 )
 
 // const tplPath string = "./templates/metrics.html"
-const tplPath string = "templates/metrics.html"
+// const tplPath string = "templates/metrics.html"
 
 type DataStorage interface {
 	SetGauge(ctx context.Context, key string, value float64) (err error)
@@ -56,6 +56,7 @@ func (c *Controller) UpdateMetric(ctx context.Context, metric models.Metrics) (s
 			err = fmt.Errorf("ошибка при обновлении %s типа %s: %w)", metric.ID, metric.MType, err)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusInternalServerError
+			return statusCode, err
 		}
 	case constants.Counter:
 		err = c.storage.SetCounter(ctx, metric.ID, metric.Delta)
@@ -63,16 +64,18 @@ func (c *Controller) UpdateMetric(ctx context.Context, metric models.Metrics) (s
 			err = fmt.Errorf("ошибка при обновлении %s типа %s: %w)", metric.ID, metric.MType, err)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusInternalServerError
+			return statusCode, err
 		}
 	default:
 		err = fmt.Errorf("ошибка при обновлении %s: тип %s не поддерживается)", metric.ID, metric.MType)
 		c.logger.Error(err.Error())
 		statusCode = http.StatusBadRequest
+		return statusCode, err
 	}
-	return statusCode, err
+	return
 }
 
-func (c *Controller) UpdateMetricFromString(ctx context.Context, mtype string, mname string, mvalue string) (statusCode int, err error) {
+func (c *Controller) UpdateMetricFromString(ctx context.Context, mtype string, mname string, mvalue *string) (statusCode int, err error) {
 
 	if mname == "" {
 		err = fmt.Errorf("ошибка при обновлении (имя метрики не заполнено)")
@@ -82,12 +85,11 @@ func (c *Controller) UpdateMetricFromString(ctx context.Context, mtype string, m
 
 	switch mtype {
 	case constants.Gauge:
-		value, err := strconv.ParseFloat(mvalue, 64)
+		value, err := strconv.ParseFloat(*mvalue, 64)
 		if err != nil {
 			err = fmt.Errorf("ошибка при обновлении %s типа %s: неверный формат значения)", mname, mtype)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusBadRequest
-
 			return statusCode, err
 		}
 		err = c.storage.SetGauge(ctx, mname, value)
@@ -95,15 +97,14 @@ func (c *Controller) UpdateMetricFromString(ctx context.Context, mtype string, m
 			err = fmt.Errorf("ошибка при обновлении %s типа %s: %w)", mname, mtype, err)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusInternalServerError
+			return statusCode, err
 		}
-
 	case constants.Counter:
-		value, err := strconv.ParseInt(mvalue, 10, 64)
+		value, err := strconv.ParseInt(*mvalue, 10, 64)
 		if err != nil {
 			err = fmt.Errorf("ошибка при обновлении %s типа %s: неверный формат значения)", mname, mtype)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusBadRequest
-
 			return statusCode, err
 		}
 		err = c.storage.SetCounter(ctx, mname, &value)
@@ -111,26 +112,29 @@ func (c *Controller) UpdateMetricFromString(ctx context.Context, mtype string, m
 			err = fmt.Errorf("ошибка при обновлении %s типа %s: %w)", mname, mtype, err)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusInternalServerError
+			return statusCode, err
 		}
-
+		*mvalue = strconv.FormatInt(value, 10)
 	default:
 		err = fmt.Errorf("ошибка при обновлении %s: тип %s не поддерживается)", mname, mtype)
 		c.logger.Error(err.Error())
 		statusCode = http.StatusBadRequest
+		return statusCode, err
 	}
-
-	return statusCode, err
+	return
 }
 
 func (c *Controller) GetOneMetric(ctx context.Context, metric *models.Metrics) (statusCode int, err error) {
 	switch metric.MType {
 	case constants.Gauge:
-		*metric.Value, err = c.storage.GetGauge(ctx, metric.ID)
+		value, err := c.storage.GetGauge(ctx, metric.ID)
 		if err != nil {
 			err = fmt.Errorf("не удалось получить данные для метрики %s типа %s: %w", metric.ID, metric.MType, err)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusNotFound
+			return statusCode, err
 		}
+		metric.Value = &value
 	case constants.Counter:
 		delta, err := c.storage.GetCounter(ctx, metric.ID)
 
@@ -138,19 +142,21 @@ func (c *Controller) GetOneMetric(ctx context.Context, metric *models.Metrics) (
 			err = fmt.Errorf("не удалось получить данные для метрики %s типа %s: %w", metric.ID, metric.MType, err)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusNotFound
-		} else {
-			metric.Delta = &delta
+			return statusCode, err
 		}
+		metric.Delta = &delta
 	case "":
 		err = fmt.Errorf("ошибка при получении метрики %s: тип обязателем для заполнения)", metric.ID)
 		c.logger.Error(err.Error())
 		statusCode = http.StatusBadRequest
+		return statusCode, err
 	default:
 		err = fmt.Errorf("ошибка при получении метрики %s: тип %s не поддерживается)", metric.ID, metric.MType)
 		c.logger.Error(err.Error())
 		statusCode = http.StatusBadRequest
+		return statusCode, err
 	}
-	return statusCode, err
+	return
 }
 
 func (c *Controller) GetAllGauge(ctx context.Context) map[string]float64 {
@@ -174,27 +180,28 @@ func (c *Controller) SaveMetrics(ctx context.Context, metrics []models.Metrics) 
 			err = fmt.Errorf("ошибка при обновлении (имя метрики типа %s не заполнено)", metric.MType)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusBadRequest
-			return
+			return statusCode, err
 		}
 		switch metric.MType {
 		case "":
 			err = fmt.Errorf("ошибка при обновлении (тип метрики %s не заполнен)", metric.ID)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusBadRequest
-			return
+			return statusCode, err
 		case constants.Counter:
 		case constants.Gauge:
 		default:
 			err = fmt.Errorf("ошибка при получении метрики %s: тип %s не поддерживается)", metric.ID, metric.MType)
 			c.logger.Error(err.Error())
 			statusCode = http.StatusBadRequest
-			return
+			return statusCode, err
 		}
 	}
 	err = c.storage.SaveMetrics(ctx, metrics)
 	if err != nil {
 		c.logger.Error(err.Error())
 		statusCode = http.StatusInternalServerError
+		return statusCode, err
 	}
 	return
 }

@@ -102,7 +102,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	metricName := req.PathValue("metricName")
 	metricValue := req.PathValue("metricValue")
 
-	statusCode, err := server.controller.UpdateMetricFromString(req.Context(), metricType, metricName, metricValue)
+	statusCode, err := server.controller.UpdateMetricFromString(req.Context(), metricType, metricName, &metricValue)
 	if err != nil {
 		if statusCode == 0 {
 			statusCode = http.StatusInternalServerError
