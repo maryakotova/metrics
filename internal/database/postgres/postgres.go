@@ -36,7 +36,7 @@ func (ps PostgresStorage) Bootstrap(ctx context.Context) error {
 		id VARCHAR(50) PRIMARY KEY,
 		mtype VARCHAR(10) NOT NULL,
 		value DOUBLE PRECISION DEFAULT 0,
-		delta INTEGER DEFAULT 0
+		delta BIGINT DEFAULT 0
 	);`
 
 	tx.ExecContext(ctx, query)

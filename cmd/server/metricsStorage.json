@@ -1,0 +1,4 @@
+{"id":"Alloc","type":"gauge","value":123.321}
+{"id":"TestCounter1","type":"counter","delta":44}
+{"id":"Alloc","type":"gauge","value":123.321}
+{"id":"TestCounter1","type":"counter","delta":44}
