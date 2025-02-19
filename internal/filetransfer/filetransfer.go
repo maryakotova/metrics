@@ -74,9 +74,9 @@ func (fw *FileWriter) Close() error {
 
 func (fw *FileWriter) WriteMetrics(metrics ...models.Metrics) error {
 
-	if len(metrics) == 0 {
-		return nil
-	}
+	// if len(metrics) != nil {
+	// 	return nil
+	// }
 
 	for _, value := range metrics {
 		data, err := json.Marshal(value)

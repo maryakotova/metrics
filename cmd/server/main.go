@@ -53,7 +53,7 @@ func main() {
 
 	server := handlers.NewServer(config, writer, log, controller)
 
-	if !config.IsSyncStore() && !config.IsStoreInFileEnabled() {
+	if !config.IsSyncStore() && config.IsStoreInFileEnabled() {
 		ticker := time.NewTicker(time.Duration(config.Server.StoreInterval) * time.Second)
 		defer ticker.Stop()
 		task := func() {

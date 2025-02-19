@@ -144,6 +144,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	}
 
 	res.WriteHeader(http.StatusOK)
+
 	if server.config.IsSyncStore() {
 		server.fileWriter.WriteMetrics(responce)
 	}
