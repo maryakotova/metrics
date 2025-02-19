@@ -108,3 +108,66 @@ func SendMetric(serverAddress string, metricType string, metricName string, metr
 	return nil
 
 }
+
+func SendMetrics(serverAddress string, metrics map[string]interface{}) (err error) {
+	for metricName, metricValue := range metrics {
+		var metricType string
+		if metricName == constants.PollCount {
+			metricType = constants.Counter
+		} else {
+			metricType = constants.Gauge
+		}
+		err := SendMetric(serverAddress, metricType, metricName, metricValue)
+
+		if err != nil {
+			addText := fmt.Sprintf("Ошибка при отправке метрики %s\n", metricName)
+			return fmt.Errorf("%s %w", addText, err)
+		}
+	}
+	return nil
+}
+
+func SendMetricsBatch(serverAddress string, metrics []models.MetricsForSend) (err error) {
+	if len(metrics) == 0 {
+		err = fmt.Errorf("metrics table is empty")
+		return
+	}
+
+	jsonData, err := json.Marshal(&metrics)
+	if err != nil {
+		return fmt.Errorf("failed to marshal data: %v", err)
+	}
+
+	var buf bytes.Buffer
+	gzipWriter := gzip.NewWriter(&buf)
+
+	_, err = gzipWriter.Write(jsonData)
+	if err != nil {
+		return fmt.Errorf("failed to write to gzip writer: %v", err)
+	}
+
+	if err := gzipWriter.Close(); err != nil {
+		return fmt.Errorf("failed to close gzip writer: %v", err)
+	}
+
+	url := fmt.Sprintf("http://%s/updates/", serverAddress)
+
+	request, err := http.NewRequest("POST", url, bytes.NewBuffer(buf.Bytes()))
+	if err != nil {
+		fmt.Printf("Error sending request: %v\n", err)
+		return err
+	}
+
+	request.Header.Set("Content-Encoding", "gzip")
+	request.Header.Set("Accept-Encoding", "")
+
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		fmt.Printf("Error sending request: %v\n", err)
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	return nil
+}

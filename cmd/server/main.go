@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maryakotova/metrics/internal/config"
+	"github.com/maryakotova/metrics/internal/controller"
 	"github.com/maryakotova/metrics/internal/filetransfer"
 	"github.com/maryakotova/metrics/internal/handlers"
 	"github.com/maryakotova/metrics/internal/logger"
@@ -13,44 +15,102 @@ import (
 	"github.com/maryakotova/metrics/internal/worker"
 
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
 
-	parseFlags()
-
-	if err := logger.Initialize(""); err != nil {
-		panic(err)
-	}
-
-	memStorage := storage.NewMemStorage()
-
-	if restore {
-		memStorage.UploadData(filePath)
-	}
-
-	writer, err := filetransfer.NewFileWriter(filePath)
+	flags, err := config.ParseFlags()
 	if err != nil {
 		panic(err)
 	}
-	defer writer.Close()
 
-	var syncFileWrite bool
-	if interval == 0 {
-		syncFileWrite = true
-	} else {
-		ticker := time.NewTicker(time.Duration(interval) * time.Second)
-		defer ticker.Stop()
+	log, err := logger.Initialize("")
+	if err != nil {
+		panic(err)
+	}
 
-		task := func() {
-			metrics := memStorage.GetAllMetricsInJSON()
-			writer.WriteMetrics(&metrics)
+	config := config.NewConfig(flags)
+
+	factory := &storage.StorageFactory{}
+
+	storage, err := factory.NewStorage(config, log)
+	if err != nil {
+		panic(err)
+	}
+
+	controller := controller.NewController(storage, log)
+
+	var writer *filetransfer.FileWriter
+
+	if config.IsStoreInFileEnabled() {
+		writer, err = filetransfer.NewFileWriter(config.Server.FileStoragePath)
+		if err != nil {
+			panic(err)
 		}
+		defer writer.Close()
+	}
 
+	server := handlers.NewServer(config, writer, log, controller)
+
+	if !config.IsSyncStore() && config.IsStoreInFileEnabled() {
+		ticker := time.NewTicker(time.Duration(config.Server.StoreInterval) * time.Second)
+		defer ticker.Stop()
+		task := func() {
+			metrics := storage.GetAllMetricsInJSON()
+			writer.WriteMetrics(metrics...)
+		}
 		worker.TriggerGoFunc(ticker, task)
 	}
 
-	server := handlers.NewServer(memStorage, syncFileWrite, writer)
+	// var ctrl *controller.Controller
+
+	// var server *handlers.Server
+
+	// if dbDsn != "" {
+	// 	db, err := sql.Open("pgx", dbDsn)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	defer db.Close()
+
+	// 	postgresStorage := postgres.NewPostgresStorage(db, log, constants.RetryCount)
+	// 	err = postgresStorage.Bootstrap(context.TODO())
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+
+	// 	ctrl = controller.NewController(postgresStorage, log)
+	// 	server = handlers.NewServer(false, nil, log, ctrl)
+	// }
+
+	// if filePath != "" {
+	// 	memStorage := inmemory.NewMemStorage()
+	// 	if restore {
+	// 		memStorage.UploadData(filePath)
+	// 	}
+	// 	writer, err := filetransfer.NewFileWriter(filePath)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	defer writer.Close()
+
+	// 	var syncFileWrite bool
+	// 	if interval == 0 {
+	// 		syncFileWrite = true
+	// 	} else {
+	// 		ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	// 		defer ticker.Stop()
+	// 		task := func() {
+	// 			metrics := memStorage.GetAllMetricsInJSON()
+	// 			writer.WriteMetrics(metrics...)
+	// 		}
+	// 		worker.TriggerGoFunc(ticker, task)
+	// 	}
+
+	// 	ctrl = controller.NewController(memStorage, log)
+	// 	server = handlers.NewServer(syncFileWrite, writer, log, ctrl)
+	// }
 
 	router := chi.NewRouter()
 	router.Use()
@@ -62,8 +122,11 @@ func main() {
 
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdate)))
 	router.Post("/update/", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdateViaJSON)))
+	router.Post("/updates/", logger.WithLogging(gzipMiddleware(server.HandleMetricUpdates)))
 
-	err = http.ListenAndServe(netAddress, router)
+	router.Get("/ping", logger.WithLogging(gzipMiddleware(server.HandlePing)))
+
+	err = http.ListenAndServe(config.Server.ServerAddress, router)
 	if err != nil {
 		panic(err)
 	}

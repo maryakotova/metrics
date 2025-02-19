@@ -22,7 +22,7 @@ type (
 	}
 )
 
-func Initialize(level string) error {
+func Initialize(level string) (logger *zap.Logger, err error) {
 
 	if level == "" {
 		level = "info"
@@ -30,16 +30,15 @@ func Initialize(level string) error {
 
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cfg := zap.NewProductionConfig()
 	cfg.Level = lvl
-	zl, err := cfg.Build()
+	Log, err := cfg.Build()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	Log = zl
-	return nil
+	return Log, nil
 }
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
