@@ -3,6 +3,7 @@ package authsign
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 )
 
 func VerifySig(receivedHash string, data []byte, key []byte) bool {
@@ -14,5 +15,5 @@ func CalculateHash(data []byte, key []byte) string {
 	hash := hmac.New(sha256.New, key)
 	hash.Write([]byte(data))
 	calculatedHash := hash.Sum(nil)
-	return string(calculatedHash)
+	return hex.EncodeToString(calculatedHash)
 }
