@@ -1,0 +1,4 @@
+{"id":"Gauge1","type":"gauge","value":1}
+{"id":"Gauge2","type":"gauge","value":5}
+{"id":"PollCount","type":"counter","delta":14}
+{"id":"metricTest1","type":"counter","delta":10}

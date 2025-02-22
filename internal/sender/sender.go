@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/maryakotova/metrics/internal/authsign"
 	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/models"
 )
@@ -127,7 +128,7 @@ func SendMetrics(serverAddress string, metrics map[string]interface{}) (err erro
 	return nil
 }
 
-func SendMetricsBatch(serverAddress string, metrics []models.MetricsForSend) (err error) {
+func SendMetricsBatch(serverAddress string, secretKey string, metrics []models.MetricsForSend) (err error) {
 	if len(metrics) == 0 {
 		err = fmt.Errorf("metrics table is empty")
 		return
@@ -136,6 +137,10 @@ func SendMetricsBatch(serverAddress string, metrics []models.MetricsForSend) (er
 	jsonData, err := json.Marshal(&metrics)
 	if err != nil {
 		return fmt.Errorf("failed to marshal data: %v", err)
+	}
+	var hash string
+	if secretKey != "" {
+		hash = authsign.CalculateHash(jsonData, []byte(secretKey))
 	}
 
 	var buf bytes.Buffer
@@ -160,6 +165,9 @@ func SendMetricsBatch(serverAddress string, metrics []models.MetricsForSend) (er
 
 	request.Header.Set("Content-Encoding", "gzip")
 	request.Header.Set("Accept-Encoding", "")
+	if hash != "" {
+		request.Header.Set(constants.HeaderSig, hash)
+	}
 
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {

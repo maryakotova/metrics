@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"text/template"
 
+	"github.com/maryakotova/metrics/internal/authsign"
 	"github.com/maryakotova/metrics/internal/config"
 	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/controller"
@@ -55,6 +57,27 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
+	receivedHash := req.Header.Get(constants.HeaderSig)
+	if receivedHash != "" {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(req.Body)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		body := buf.Bytes()
+		if !authsign.VerifySig(receivedHash, []byte(body), []byte(server.config.SecretKey)) {
+			err = fmt.Errorf("invalid hash")
+			server.logger.Error(err.Error())
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	// ----------------------------------------------------------------------------------------------------------------------------------------------
+	// При наличии ключа на этапе формирования ответа сервер должен вычислять хеш и передавать его в HTTP-заголовке ответа с именем HashSHA256.
+	// Сервер должен отправлять тот же самый хэш? или новый в зависимости от ответа?
+	// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 	var request models.Metrics
 
 	dec := json.NewDecoder(req.Body)
@@ -97,6 +120,23 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
+	}
+
+	receivedHash := req.Header.Get(constants.HeaderSig)
+	if receivedHash != "" {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(req.Body)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		body := buf.Bytes()
+		if !authsign.VerifySig(receivedHash, []byte(body), []byte(server.config.SecretKey)) {
+			err = fmt.Errorf("invalid hash")
+			server.logger.Error(err.Error())
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	metricType := req.PathValue("metricType")
@@ -154,6 +194,23 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
+	}
+
+	receivedHash := req.Header.Get(constants.HeaderSig)
+	if receivedHash != "" {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(req.Body)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		body := buf.Bytes()
+		if !authsign.VerifySig(receivedHash, []byte(body), []byte(server.config.SecretKey)) {
+			err = fmt.Errorf("invalid hash")
+			server.logger.Error(err.Error())
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	var request models.Metrics
@@ -273,6 +330,23 @@ func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Req
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
+	}
+
+	receivedHash := req.Header.Get(constants.HeaderSig)
+	if receivedHash != "" {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(req.Body)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		body := buf.Bytes()
+		if !authsign.VerifySig(receivedHash, []byte(body), []byte(server.config.SecretKey)) {
+			err = fmt.Errorf("invalid hash")
+			server.logger.Error(err.Error())
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	var request []models.Metrics

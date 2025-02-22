@@ -15,6 +15,7 @@ var (
 	pollInterval   int64
 	reportInterval int64
 	retriesCount   int = 3
+	secretKey      string
 )
 
 func main() {
@@ -37,7 +38,7 @@ func main() {
 
 				for i := 0; i <= retriesCount; i++ {
 
-					err := sender.SendMetricsBatch(serverAddress, metrics)
+					err := sender.SendMetricsBatch(serverAddress, secretKey, metrics)
 					if err == nil {
 						break
 					}

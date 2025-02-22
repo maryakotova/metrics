@@ -2,9 +2,14 @@ package config
 
 import "github.com/maryakotova/metrics/internal/constants"
 
+//-----------------------------------------------------------------------------------------------------------------------
+// должны ли быть поля структуры Config публичными? или нужно сделать приватными и метод для доступа к каждому параметру?
+//-----------------------------------------------------------------------------------------------------------------------
+
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	SecretKey string
 }
 
 type ServerConfig struct {
@@ -31,6 +36,7 @@ func NewConfig(flags *Flags) *Config {
 			DatabaseDsn: flags.Database.DatabaseDsn,
 			RetryCount:  constants.RetryCount,
 		},
+		SecretKey: flags.SecretKey,
 	}
 }
 
