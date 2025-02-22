@@ -16,6 +16,7 @@ type Flags struct {
 	Database struct {
 		DatabaseDsn string //`env:"DATABASE_DSN"`
 	}
+	SecretKey string //`env:"KEY"`
 }
 
 func ParseFlags() (*Flags, error) {
@@ -28,6 +29,7 @@ func ParseFlags() (*Flags, error) {
 	flag.StringVar(&flags.Server.FileStoragePath, "f", "./metricsStorage.json", "Путь до файла, куда сохраняются текущие значения")
 	flag.BoolVar(&flags.Server.Restore, "r", true, "Загрузка ранее сохранённые значения из указанного файла при старте сервера")
 	flag.StringVar(&flags.Database.DatabaseDsn, "d", "", "Строка c адресом подключения к БД") //"host=localhost user=metrics password=test dbname=metrics sslmode=disable"
+	flag.StringVar(&flags.SecretKey, "k", "", "Ключ для подписи передаваемых данных")
 
 	//аргументы командной строки
 	flag.Parse()
@@ -57,6 +59,10 @@ func ParseFlags() (*Flags, error) {
 
 	if envDSN := os.Getenv("DATABASE_DSN"); envDSN != "" {
 		flags.Database.DatabaseDsn = envDSN
+	}
+
+	if envKey := os.Getenv("KEY"); envKey != "" {
+		flags.SecretKey = envKey
 	}
 
 	return &flags, nil
