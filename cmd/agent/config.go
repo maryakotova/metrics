@@ -26,7 +26,7 @@ func parseFlags() {
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
 	flag.Int64Var(&reportInterval, "r", 10, "Частота отправки метрик на сервер")
 	flag.Int64Var(&pollInterval, "p", 2, "Частота опроса метрик из пакета runtime")
-	flag.StringVar(&secretKey, "k", "", "Ключ для подписи передаваемых данных")
+	flag.StringVar(&secretKey, "k", "secret", "Ключ для подписи передаваемых данных")
 	flag.Parse()
 
 	if cfg.ServerAddress != "" {

@@ -332,15 +332,16 @@ func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Req
 		return
 	}
 
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(req.Body)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	body := buf.Bytes()
+
 	receivedHash := req.Header.Get(constants.HeaderSig)
 	if receivedHash != "" {
-		buf := new(bytes.Buffer)
-		_, err := buf.ReadFrom(req.Body)
-		if err != nil {
-			res.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		body := buf.Bytes()
 		if !authsign.VerifySig(receivedHash, []byte(body), []byte(server.config.SecretKey)) {
 			err = fmt.Errorf("invalid hash")
 			server.logger.Error(err.Error())
@@ -351,8 +352,9 @@ func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Req
 
 	var request []models.Metrics
 
-	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&request); err != nil {
+	// decoder := json.NewDecoder(req.Body)
+	// if err := decoder.Decode(&request); err != nil {
+	if err = json.Unmarshal([]byte(body), &request); err != nil {
 		err = fmt.Errorf("ошибка в JSON: %w", err)
 		server.logger.Error(err.Error())
 		res.WriteHeader(http.StatusInternalServerError)
