@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/maryakotova/metrics/internal/constants"
 	"github.com/maryakotova/metrics/internal/filetransfer"
@@ -12,6 +13,7 @@ import (
 type MemStorage struct {
 	gauge   map[string]float64
 	counter map[string]int64
+	m       sync.RWMutex
 }
 
 func NewMemStorage() *MemStorage {
@@ -26,8 +28,9 @@ func (ms *MemStorage) SetGauge(ctx context.Context, key string, value float64) (
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return err
 	}
-
+	ms.m.Lock()
 	ms.gauge[key] = value
+	ms.m.Unlock()
 	return
 }
 
@@ -36,6 +39,13 @@ func (ms *MemStorage) SetCounter(ctx context.Context, key string, value *int64) 
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return err
 	}
+
+	// var zero int64 = 0
+	// if value == nil {
+	// 	value = &zero
+	// }
+
+	ms.m.Lock()
 	val, ok := ms.counter[key]
 	if ok {
 		ms.counter[key] += *value
@@ -44,6 +54,7 @@ func (ms *MemStorage) SetCounter(ctx context.Context, key string, value *int64) 
 	} else {
 		ms.counter[key] = *value
 	}
+	ms.m.Unlock()
 	return
 }
 
@@ -52,13 +63,16 @@ func (ms *MemStorage) SetCounterFromFile(ctx context.Context, key string, value 
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return err
 	}
+	ms.m.Lock()
 	ms.counter[key] = value
+	ms.m.Unlock()
 	return
 }
 
 func (ms *MemStorage) GetGauge(ctx context.Context, key string) (value float64, err error) {
-
+	ms.m.Lock()
 	value, ok := ms.gauge[key]
+	ms.m.Unlock()
 	if !ok {
 		err = fmt.Errorf("значение метрики %s типа gauge не найдено", key)
 		return
@@ -67,7 +81,9 @@ func (ms *MemStorage) GetGauge(ctx context.Context, key string) (value float64, 
 }
 
 func (ms *MemStorage) GetCounter(ctx context.Context, key string) (value int64, err error) {
+	ms.m.Lock()
 	value, ok := ms.counter[key]
+	ms.m.Unlock()
 	if !ok {
 		err = fmt.Errorf("значение метрики %s типа Counter не найдено", key)
 	}
@@ -76,6 +92,7 @@ func (ms *MemStorage) GetCounter(ctx context.Context, key string) (value int64, 
 
 func (ms *MemStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 	return ms.gauge
+
 }
 
 func (ms *MemStorage) GetAllCounter(ctx context.Context) map[string]int64 {
@@ -86,6 +103,7 @@ func (ms *MemStorage) GetAll(ctx context.Context) map[string]interface{} {
 
 	allMetrics := make(map[string]interface{})
 
+	ms.m.Lock()
 	for key, value := range ms.gauge {
 		allMetrics[key] = value
 	}
@@ -93,6 +111,7 @@ func (ms *MemStorage) GetAll(ctx context.Context) map[string]interface{} {
 	for key, value := range ms.counter {
 		allMetrics[key] = value
 	}
+	ms.m.Unlock()
 
 	return allMetrics
 }
@@ -101,6 +120,7 @@ func (ms *MemStorage) GetAllMetricsInJSON() []models.Metrics {
 
 	metrics := []models.Metrics{}
 
+	ms.m.Lock()
 	for key, value := range ms.gauge {
 
 		metric := models.Metrics{
@@ -117,6 +137,7 @@ func (ms *MemStorage) GetAllMetricsInJSON() []models.Metrics {
 			Delta: &value}
 		metrics = append(metrics, metric)
 	}
+	ms.m.Unlock()
 
 	return metrics
 }

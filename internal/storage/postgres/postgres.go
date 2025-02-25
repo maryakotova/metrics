@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -19,6 +20,7 @@ type PostgresStorage struct {
 	db     *sql.DB
 	config *config.Config
 	logger *zap.Logger
+	m      sync.RWMutex
 }
 
 //------------------------------------------------------------------------------------
@@ -78,7 +80,9 @@ func (ps PostgresStorage) SetGauge(ctx context.Context, key string, value float6
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		_, err = ps.db.ExecContext(ctx, query, key, constants.Gauge, value)
+		ps.m.Unlock()
 		if err == nil {
 			return nil
 		}
@@ -111,7 +115,9 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value *int
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		_, err = ps.db.ExecContext(ctx, query, key, constants.Counter, value)
+		ps.m.Unlock()
 		if err == nil {
 			val, err := ps.GetCounter(ctx, key)
 			if err == nil {
@@ -143,7 +149,9 @@ func (ps PostgresStorage) GetGauge(ctx context.Context, key string) (value float
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		row := ps.db.QueryRowContext(ctx, query, key, constants.Gauge)
+		ps.m.Unlock()
 		err = row.Scan(&value)
 		if err == nil {
 			return
@@ -175,7 +183,9 @@ func (ps PostgresStorage) GetCounter(ctx context.Context, key string) (value int
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		row := ps.db.QueryRowContext(ctx, query, key, constants.Counter)
+		ps.m.Unlock()
 		err = row.Scan(&value)
 		if err == nil {
 			return
@@ -210,7 +220,9 @@ func (ps PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		rows, err = ps.db.QueryContext(ctx, query, constants.Gauge)
+		ps.m.Unlock()
 		if err == nil {
 			break
 		}
@@ -257,7 +269,9 @@ func (ps PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		rows, err = ps.db.QueryContext(ctx, query, constants.Counter)
+		ps.m.Unlock()
 		if err == nil {
 			break
 		}
@@ -303,7 +317,9 @@ func (ps PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		rows, err = ps.db.QueryContext(ctx, query)
+		ps.m.Unlock()
 		if err == nil {
 			break
 		}
@@ -380,12 +396,16 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 				if metric.Value == nil {
 					metric.Value = &zero
 				}
+				ps.m.Lock()
 				_, error = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
+				ps.m.Unlock()
 				if error != nil {
 					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %w", metric.MType, metric.ID, &metric.Value, error)
 				}
 			case constants.Counter:
+				ps.m.Lock()
 				_, error = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
+				ps.m.Unlock()
 				if error != nil {
 					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %v, %w", metric.MType, metric.ID, &metric.Delta, metric.Delta, error)
 				}

@@ -1,46 +1,63 @@
 package main
 
-import (
-	"flag"
-	"log"
+// import (
+// 	"flag"
+// 	"os"
+// 	"strconv"
+// )
 
-	"github.com/caarlos0/env/v6"
-)
+// type Config struct {
+// 	ServerAddress  string
+// 	ReportInterval int64
+// 	PollInterval   int64
+// 	SecretKey      string
+// 	RateLimit      int64
+// }
 
-type Config struct {
-	ServerAddress  string `env:"ADDRESS"`
-	ReportInterval int64  `env:"REPORT_INTERVAL"`
-	PollInterval   int64  `env:"POLL_INTERVAL"`
-	SecretKey      string `env:"KEY"`
-}
+// func parseFlags() (*Config, error) {
 
-func parseFlags() {
+// 	var err error
+// 	var cfg Config
 
-	var cfg Config
-	err := env.Parse(&cfg)
+// 	flag.StringVar(&cfg.ServerAddress, "a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
+// 	flag.Int64Var(&cfg.ReportInterval, "r", 10, "Частота отправки метрик на сервер")
+// 	flag.Int64Var(&cfg.PollInterval, "p", 2, "Частота опроса метрик из пакета runtime")
+// 	flag.StringVar(&cfg.SecretKey, "k", "", "Ключ для подписи передаваемых данных")
+// 	flag.Int64Var(&cfg.RateLimit, "l", 0, "Количество одновременно исходящих запросов на сервер")
 
-	if err != nil {
-		log.Fatal(err)
-	}
+// 	//аргументы командной строки
+// 	flag.Parse()
 
-	flag.StringVar(&serverAddress, "a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
-	flag.Int64Var(&reportInterval, "r", 10, "Частота отправки метрик на сервер")
-	flag.Int64Var(&pollInterval, "p", 2, "Частота опроса метрик из пакета runtime")
-	flag.StringVar(&secretKey, "k", "", "Ключ для подписи передаваемых данных")
-	flag.Parse()
+// 	// переменные окружения
+// 	if envNetAddr := os.Getenv("ADDRESS"); envNetAddr != "" {
+// 		cfg.ServerAddress = envNetAddr
+// 	}
 
-	if cfg.ServerAddress != "" {
-		serverAddress = cfg.ServerAddress
-	}
-	if cfg.ReportInterval != 0 {
-		reportInterval = cfg.ReportInterval
-	}
-	if cfg.PollInterval != 0 {
-		pollInterval = cfg.PollInterval
-	}
+// 	if envReportInterval := os.Getenv("REPORT_INTERVAL"); envReportInterval != "" {
+// 		cfg.ReportInterval, err = strconv.ParseInt(envReportInterval, 10, 64)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	}
 
-	if cfg.SecretKey != "" {
-		secretKey = cfg.SecretKey
-	}
+// 	if envPollInterval := os.Getenv("POLL_INTERVAL"); envPollInterval != "" {
+// 		cfg.PollInterval, err = strconv.ParseInt(envPollInterval, 10, 64)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	}
 
-}
+// 	if envKey := os.Getenv("KEY"); envKey != "" {
+// 		cfg.SecretKey = envKey
+// 	}
+
+// 	if envRateLimit := os.Getenv("RATE_LIMIT"); envRateLimit != "" {
+// 		cfg.RateLimit, err = strconv.ParseInt(envRateLimit, 10, 64)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	}
+
+// 	return &cfg, nil
+
+// }
