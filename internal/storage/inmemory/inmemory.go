@@ -40,11 +40,6 @@ func (ms *MemStorage) SetCounter(ctx context.Context, key string, value *int64) 
 		return err
 	}
 
-	// var zero int64 = 0
-	// if value == nil {
-	// 	value = &zero
-	// }
-
 	ms.m.Lock()
 	val, ok := ms.counter[key]
 	if ok {

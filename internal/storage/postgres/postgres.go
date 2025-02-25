@@ -42,7 +42,7 @@ func NewPostgresStorage(cfg *config.Config, logger *zap.Logger) (*PostgresStorag
 	}, nil
 }
 
-func (ps PostgresStorage) Bootstrap(ctx context.Context) error {
+func (ps *PostgresStorage) Bootstrap(ctx context.Context) error {
 	tx, err := ps.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func (ps PostgresStorage) Bootstrap(ctx context.Context) error {
 	return nil
 }
 
-func (ps PostgresStorage) SetGauge(ctx context.Context, key string, value float64) (err error) {
+func (ps *PostgresStorage) SetGauge(ctx context.Context, key string, value float64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
@@ -100,7 +100,7 @@ func (ps PostgresStorage) SetGauge(ctx context.Context, key string, value float6
 	return err
 }
 
-func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value *int64) (err error) {
+func (ps *PostgresStorage) SetCounter(ctx context.Context, key string, value *int64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
@@ -142,7 +142,7 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value *int
 	return err
 }
 
-func (ps PostgresStorage) GetGauge(ctx context.Context, key string) (value float64, err error) {
+func (ps *PostgresStorage) GetGauge(ctx context.Context, key string) (value float64, err error) {
 	query := `
 	SELECT value FROM metrics WHERE id = $1 AND mtype = $2;
 	`
@@ -176,7 +176,7 @@ func (ps PostgresStorage) GetGauge(ctx context.Context, key string) (value float
 	return
 }
 
-func (ps PostgresStorage) GetCounter(ctx context.Context, key string) (value int64, err error) {
+func (ps *PostgresStorage) GetCounter(ctx context.Context, key string) (value int64, err error) {
 	query := `
 	SELECT delta FROM metrics WHERE id = $1 AND mtype = $2;
 	`
@@ -210,7 +210,7 @@ func (ps PostgresStorage) GetCounter(ctx context.Context, key string) (value int
 	return
 }
 
-func (ps PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
+func (ps *PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 	query := `
 	SELECT id, value FROM metrics WHERE mtype = $1
 	`
@@ -259,7 +259,7 @@ func (ps PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 	return gaugeMetrics
 }
 
-func (ps PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
+func (ps *PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 	query := `
 	SELECT id, delta FROM metrics WHERE mtype = $1
 	`
@@ -307,7 +307,7 @@ func (ps PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 	return counterMetrics
 }
 
-func (ps PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
+func (ps *PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
 
 	query := `
 	SELECT id, delta FROM metrics
@@ -354,14 +354,14 @@ func (ps PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
 	return metrics
 }
 
-func (ps PostgresStorage) CheckConnection(ctx context.Context) (err error) {
+func (ps *PostgresStorage) CheckConnection(ctx context.Context) (err error) {
 	context, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	return ps.db.PingContext(context)
 }
 
-func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
+func (ps *PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
 	tx, err := ps.db.Begin()
 	if err != nil {
 		err = fmt.Errorf("failed to start transaction")
@@ -433,7 +433,7 @@ func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 	return tx.Commit()
 }
 
-func (ps PostgresStorage) GetAllMetricsInJSON() []models.Metrics {
+func (ps *PostgresStorage) GetAllMetricsInJSON() []models.Metrics {
 	metrics := []models.Metrics{}
 	return metrics
 }
