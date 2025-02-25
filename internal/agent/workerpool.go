@@ -12,9 +12,14 @@ type Result struct {
 }
 
 func (agent *Agent) CollectRuntimeMetricsAtInterval() {
+	var interval int
 	for range agent.pollTicker.C {
-		metrics := agent.collectRuntimeMetrics()
-		agent.sendQueue <- Metrics{Metrics: metrics}
+		interval += int(agent.PollInterval)
+		if interval == int(agent.ReportInterval) {
+			interval = 0
+			metrics := agent.collectRuntimeMetrics()
+			agent.sendQueue <- Metrics{Metrics: metrics}
+		}
 	}
 }
 

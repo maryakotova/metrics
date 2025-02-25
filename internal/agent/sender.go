@@ -123,7 +123,7 @@ func (agent *Agent) doUpdatesRequest(metrics []models.MetricsForSend) error {
 
 	request, err := http.NewRequest("POST", url, bytes.NewBuffer(buf.Bytes()))
 	if err != nil {
-		fmt.Printf("Error sending request: %w\n", err)
+		fmt.Println("Error sending request: %w\n", err)
 		return err
 	}
 
@@ -135,7 +135,7 @@ func (agent *Agent) doUpdatesRequest(metrics []models.MetricsForSend) error {
 
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
-		fmt.Printf("Error sending request: %w\n", err)
+		fmt.Println("Error sending request: %w\n", err)
 		return err
 	}
 
