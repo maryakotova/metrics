@@ -23,7 +23,6 @@ func (agent *Agent) CollectAdditionalMetricsAtInterval() {
 		metrics, err := agent.collectAdditionalMetrics()
 		if err != nil {
 			//писать в лог
-
 		} else {
 			agent.sendQueue <- Metrics{Metrics: metrics}
 		}
@@ -31,8 +30,6 @@ func (agent *Agent) CollectAdditionalMetricsAtInterval() {
 }
 
 func (agent *Agent) Worker() {
-	// agent.wg.Add(1)
-	// defer agent.wg.Done()
 	for range agent.reportTicker.C {
 		for metrics := range agent.sendQueue {
 			metricsForSend := agent.PrepareMetrics(metrics.Metrics)
@@ -46,12 +43,12 @@ func (agent *Agent) Worker() {
 
 func (agent *Agent) HandleErrors() {
 	for {
-		result, err := <-agent.resultQueue
+		result, open := <-agent.resultQueue
 		if result.Error != nil {
 			fmt.Println(result.Error.Error())
 		}
 		// канал закрыт
-		if err {
+		if !open {
 			return
 		}
 	}
