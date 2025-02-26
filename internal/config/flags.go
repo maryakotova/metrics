@@ -28,7 +28,7 @@ func ParseFlags() (*Flags, error) {
 	flag.Int64Var(&flags.Server.StoreInterval, "i", 300, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
 	flag.StringVar(&flags.Server.FileStoragePath, "f", "./metricsStorage.json", "Путь до файла, куда сохраняются текущие значения")
 	flag.BoolVar(&flags.Server.Restore, "r", true, "Загрузка ранее сохранённые значения из указанного файла при старте сервера")
-	flag.StringVar(&flags.Database.DatabaseDsn, "d", "", "Строка c адресом подключения к БД") //"host=localhost user=metrics password=test dbname=metrics sslmode=disable"
+	flag.StringVar(&flags.Database.DatabaseDsn, "d", "host=localhost user=metrics password=test dbname=metrics sslmode=disable", "Строка c адресом подключения к БД") //"host=localhost user=metrics password=test dbname=metrics sslmode=disable"
 	flag.StringVar(&flags.SecretKey, "k", "", "Ключ для подписи передаваемых данных")
 
 	//аргументы командной строки

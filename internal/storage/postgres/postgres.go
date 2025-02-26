@@ -362,73 +362,157 @@ func (ps *PostgresStorage) CheckConnection(ctx context.Context) (err error) {
 }
 
 func (ps *PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
-	tx, err := ps.db.Begin()
+	return ps.withTx(ctx, func(tx *sql.Tx) error {
+		queryGauge := `
+		INSERT INTO metrics (id, mtype, value)
+		VALUES ($1, $2, $3) 
+		ON CONFLICT (id) DO UPDATE
+		SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;
+		`
+		queryCounter := `
+		INSERT INTO metrics (id, mtype, delta)
+		VALUES ($1, $2, $3) 
+		ON CONFLICT (id) DO UPDATE
+		SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
+		`
+
+		for i := 0; i <= ps.config.GetRetryCount(); i++ {
+
+			var error error
+
+			for _, metric := range metrics {
+				if metric.ID == "" {
+					error = fmt.Errorf("ошибка при сохранении в БД. Пустое имя метрики: %v", metric)
+					break
+				}
+				var zero float64 = 0
+				switch metric.MType {
+				case constants.Gauge:
+					if metric.Value == nil {
+						metric.Value = &zero
+					}
+					ps.m.Lock()
+					_, error = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
+					ps.m.Unlock()
+					if error != nil {
+						error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %w", metric.MType, metric.ID, &metric.Value, error)
+					}
+				case constants.Counter:
+					ps.m.Lock()
+					_, error = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
+					ps.m.Unlock()
+					if error != nil {
+						error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %v, %w", metric.MType, metric.ID, &metric.Delta, metric.Delta, error)
+					}
+				default:
+					error = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
+				}
+				if error != nil {
+					break
+				}
+			}
+			if error == nil {
+				break
+			}
+			if !isRetriableError(error) {
+				ps.logger.Error(error.Error())
+				return error
+			}
+			if i == ps.config.GetRetryCount() {
+				ps.logger.Error(error.Error())
+				return error
+			}
+			time.Sleep(time.Duration(i*2+1) * time.Second) // Backoff: 1s, 3s, 5s
+
+		}
+		return nil
+	})
+}
+
+// func (ps *PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
+// 	tx, err := ps.db.Begin()
+// 	if err != nil {
+// 		err = fmt.Errorf("failed to start transaction")
+// 		return err
+// 	}
+// 	defer tx.Rollback()
+
+// 	queryGauge := `
+// 	INSERT INTO metrics (id, mtype, value)
+// 	VALUES ($1, $2, $3)
+// 	ON CONFLICT (id) DO UPDATE
+// 	SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;
+// 	`
+// 	queryCounter := `
+// 	INSERT INTO metrics (id, mtype, delta)
+// 	VALUES ($1, $2, $3)
+// 	ON CONFLICT (id) DO UPDATE
+// 	SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
+// 	`
+// 	for i := 0; i <= ps.config.GetRetryCount(); i++ {
+
+// 		var error error
+
+// 		for _, metric := range metrics {
+// 			if metric.ID == "" {
+// 				error = fmt.Errorf("ошибка при сохранении в БД. Пустое имя метрики: %v", metric)
+// 				break
+// 			}
+// 			var zero float64 = 0
+// 			switch metric.MType {
+// 			case constants.Gauge:
+// 				if metric.Value == nil {
+// 					metric.Value = &zero
+// 				}
+// 				ps.m.Lock()
+// 				_, error = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
+// 				ps.m.Unlock()
+// 				if error != nil {
+// 					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %w", metric.MType, metric.ID, &metric.Value, error)
+// 				}
+// 			case constants.Counter:
+// 				ps.m.Lock()
+// 				_, error = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
+// 				ps.m.Unlock()
+// 				if error != nil {
+// 					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %v, %w", metric.MType, metric.ID, &metric.Delta, metric.Delta, error)
+// 				}
+// 			default:
+// 				error = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
+// 			}
+// 			if error != nil {
+// 				break
+// 			}
+// 		}
+// 		if error == nil {
+// 			break
+// 		}
+// 		if !isRetriableError(err) {
+// 			ps.logger.Error(error.Error())
+// 			return error
+// 		}
+// 		if i == ps.config.GetRetryCount() {
+// 			ps.logger.Error(error.Error())
+// 			return error
+// 		}
+// 		time.Sleep(time.Duration(i*2+1) * time.Second) // Backoff: 1s, 3s, 5s
+
+// 	}
+// 	return tx.Commit()
+// }
+
+func (ps *PostgresStorage) withTx(ctx context.Context, fn func(*sql.Tx) error) error {
+	tx, err := ps.db.BeginTx(ctx, nil)
 	if err != nil {
-		err = fmt.Errorf("failed to start transaction")
+		err = fmt.Errorf("begin transaction: %w", err)
+		ps.logger.Error(err.Error())
 		return err
 	}
 	defer tx.Rollback()
 
-	queryGauge := `
-	INSERT INTO metrics (id, mtype, value)
-	VALUES ($1, $2, $3) 
-	ON CONFLICT (id) DO UPDATE
-	SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;
-	`
-	queryCounter := `
-	INSERT INTO metrics (id, mtype, delta)
-	VALUES ($1, $2, $3) 
-	ON CONFLICT (id) DO UPDATE
-	SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
-	`
-	for i := 0; i <= ps.config.GetRetryCount(); i++ {
-
-		var error error
-
-		for _, metric := range metrics {
-			if metric.ID == "" {
-				error = fmt.Errorf("ошибка при сохранении в БД. Пустое имя метрики: %v", metric)
-				break
-			}
-			var zero float64 = 0
-			switch metric.MType {
-			case constants.Gauge:
-				if metric.Value == nil {
-					metric.Value = &zero
-				}
-				ps.m.Lock()
-				_, error = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
-				ps.m.Unlock()
-				if error != nil {
-					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %w", metric.MType, metric.ID, &metric.Value, error)
-				}
-			case constants.Counter:
-				ps.m.Lock()
-				_, error = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
-				ps.m.Unlock()
-				if error != nil {
-					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %v, %w", metric.MType, metric.ID, &metric.Delta, metric.Delta, error)
-				}
-			default:
-				error = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
-			}
-			if error != nil {
-				break
-			}
-		}
-		if error == nil {
-			break
-		}
-		if !isRetriableError(err) {
-			ps.logger.Error(error.Error())
-			return error
-		}
-		if i == ps.config.GetRetryCount() {
-			ps.logger.Error(error.Error())
-			return error
-		}
-		time.Sleep(time.Duration(i*2+1) * time.Second) // Backoff: 1s, 3s, 5s
-
+	if err := fn(tx); err != nil {
+		ps.logger.Error(err.Error())
+		return err
 	}
 	return tx.Commit()
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/shirou/gopsutil/mem"
 )
 
-var pollCount int64
+// var pollCount int64
 
 // func (agent *Agent) collectRuntimeMetrics() {
 // 	memStats := new(runtime.MemStats)
@@ -82,9 +82,6 @@ func (agent *Agent) collectRuntimeMetrics() map[string]interface{} {
 	metrics["Sys"] = memStats.Sys
 	metrics["TotalAlloc"] = memStats.TotalAlloc
 
-	// agent.setPollCountInitial()
-
-	// pollCount++
 	metrics["PollCount"] = 1
 
 	metrics["RandomValue"] = rand.Float64()
@@ -92,9 +89,9 @@ func (agent *Agent) collectRuntimeMetrics() map[string]interface{} {
 	return metrics
 }
 
-func (agent *Agent) setPollCountInitial() {
-	pollCount = 0
-}
+// func (agent *Agent) setPollCountInitial() {
+// 	pollCount = 0
+// }
 
 // func (agent *Agent) collectAdditionalMetrics() {
 // 	vm, err := mem.VirtualMemory()
