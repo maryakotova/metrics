@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/maryakotova/metrics/internal/authsign"
-	"github.com/maryakotova/metrics/internal/constants"
-	"github.com/maryakotova/metrics/internal/models"
+	"metrics/internal/authsign"
+	"metrics/internal/constants"
+	"metrics/internal/models"
 )
 
 func SendMetric(serverAddress string, metricType string, metricName string, metricValue interface{}) error {
