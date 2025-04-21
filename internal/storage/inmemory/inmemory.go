@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/maryakotova/metrics/internal/constants"
-	"github.com/maryakotova/metrics/internal/filetransfer"
-	"github.com/maryakotova/metrics/internal/models"
+	"metrics/internal/constants"
+	"metrics/internal/filetransfer"
+	"metrics/internal/models"
 )
 
 type MemStorage struct {

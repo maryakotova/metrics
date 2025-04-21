@@ -3,10 +3,11 @@ package storage
 import (
 	"context"
 
-	"github.com/maryakotova/metrics/internal/config"
-	"github.com/maryakotova/metrics/internal/models"
-	"github.com/maryakotova/metrics/internal/storage/inmemory"
-	"github.com/maryakotova/metrics/internal/storage/postgres"
+	"metrics/internal/config"
+	"metrics/internal/models"
+	"metrics/internal/storage/inmemory"
+	"metrics/internal/storage/postgres"
+
 	"go.uber.org/zap"
 )
 

@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/maryakotova/metrics/internal/constants"
-	"github.com/maryakotova/metrics/internal/models"
+	"metrics/internal/constants"
+	"metrics/internal/models"
+
 	"go.uber.org/zap"
 )
 

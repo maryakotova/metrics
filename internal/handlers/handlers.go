@@ -8,12 +8,13 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/maryakotova/metrics/internal/authsign"
-	"github.com/maryakotova/metrics/internal/config"
-	"github.com/maryakotova/metrics/internal/constants"
-	"github.com/maryakotova/metrics/internal/controller"
-	"github.com/maryakotova/metrics/internal/filetransfer"
-	"github.com/maryakotova/metrics/internal/models"
+	"metrics/internal/authsign"
+	"metrics/internal/config"
+	"metrics/internal/constants"
+	"metrics/internal/controller"
+	"metrics/internal/filetransfer"
+	"metrics/internal/models"
+
 	"go.uber.org/zap"
 )
 

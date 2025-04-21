@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maryakotova/metrics/internal/authsign"
-	"github.com/maryakotova/metrics/internal/constants"
-	"github.com/maryakotova/metrics/internal/models"
+	"metrics/internal/authsign"
+	"metrics/internal/constants"
+	"metrics/internal/models"
 )
 
 func (agent *Agent) PrepareMetrics(metrics map[string]interface{}) []models.MetricsForSend {

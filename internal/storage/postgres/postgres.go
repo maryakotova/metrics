@@ -8,11 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"metrics/internal/config"
+	"metrics/internal/constants"
+	"metrics/internal/models"
+
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
-	"github.com/maryakotova/metrics/internal/config"
-	"github.com/maryakotova/metrics/internal/constants"
-	"github.com/maryakotova/metrics/internal/models"
 	"go.uber.org/zap"
 )
 

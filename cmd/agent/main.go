@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/maryakotova/metrics/internal/agent"
+	"metrics/internal/agent"
 )
 
 func main() {
@@ -13,8 +13,6 @@ func main() {
 
 	agent := agent.New(cfg)
 
-	// один раз в PollInterval секунд в очередь добавляются данные
-	// правильно? или нужно раз в PollInterval секунд сохранять их в локальное хранилище и раз в ReportInterval секунд добавлять в очередь?
 	go agent.CollectRuntimeMetricsAtInterval()
 	go agent.CollectAdditionalMetricsAtInterval()
 	go agent.PublishMetrics()
