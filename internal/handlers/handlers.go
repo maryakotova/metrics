@@ -99,7 +99,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 
 	responce := request
 
-	res.Header().Set("Content-Type", "Content-Type: application/json")
+	res.Header().Set("Content-Type", "application/json")
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(responce); err != nil {
@@ -152,7 +152,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	res.Header().Set("Content-Type", "Content-Type: application/json")
+	res.Header().Set("Content-Type", "application/json")
 
 	// ----------------------------------------------------------------------
 	//как правильно заполнить responce в данной ситуации (value и delta) ?

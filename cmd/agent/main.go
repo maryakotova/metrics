@@ -17,11 +17,16 @@ func main() {
 	// правильно? или нужно раз в PollInterval секунд сохранять их в локальное хранилище и раз в ReportInterval секунд добавлять в очередь?
 	go agent.CollectRuntimeMetricsAtInterval()
 	go agent.CollectAdditionalMetricsAtInterval()
+	go agent.PublishMetrics()
 
-	for w := 0; w <= int(agent.RateLimit); w++ {
-		go agent.Worker()
+	for w := range int(agent.RateLimit) {
+		agent.WG.Add(1)
+		go agent.Worker(w)
 	}
 
-	agent.HandleErrors()
+	agent.WG.Add(1)
+	go agent.HandleErrors()
+
+	agent.WG.Wait()
 
 }

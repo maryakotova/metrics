@@ -20,10 +20,10 @@ func ParseFlags() (*Config, error) {
 	var cfg Config
 
 	flag.StringVar(&cfg.ServerAddress, "a", "localhost:8080", "Адрес эндпоинта HTTP-сервера")
-	flag.Int64Var(&cfg.ReportInterval, "r", 10, "Частота отправки метрик на сервер")
+	flag.Int64Var(&cfg.ReportInterval, "r", 5, "Частота отправки метрик на сервер")
 	flag.Int64Var(&cfg.PollInterval, "p", 2, "Частота опроса метрик из пакета runtime")
 	flag.StringVar(&cfg.SecretKey, "k", "", "Ключ для подписи передаваемых данных")
-	flag.IntVar(&cfg.RateLimit, "l", 5, "Количество одновременно исходящих запросов на сервер")
+	flag.IntVar(&cfg.RateLimit, "l", 4, "Количество одновременно исходящих запросов на сервер")
 
 	//аргументы командной строки
 	flag.Parse()
