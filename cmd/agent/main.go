@@ -4,7 +4,7 @@ import (
 	"metrics/internal/agent"
 
 	"net/http"
-	//_ "net/http/pprof"
+	_ "net/http/pprof"
 )
 
 func main() {

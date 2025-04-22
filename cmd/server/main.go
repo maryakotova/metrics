@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	//_ "net/http/pprof"
+	_ "net/http/pprof"
 
 	"metrics/internal/config"
 	"metrics/internal/controller"
