@@ -5,13 +5,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
+
+	"metrics/internal/config"
+	"metrics/internal/constants"
+	"metrics/internal/models"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
-	"github.com/maryakotova/metrics/internal/config"
-	"github.com/maryakotova/metrics/internal/constants"
-	"github.com/maryakotova/metrics/internal/models"
 	"go.uber.org/zap"
 )
 
@@ -19,6 +21,7 @@ type PostgresStorage struct {
 	db     *sql.DB
 	config *config.Config
 	logger *zap.Logger
+	m      sync.RWMutex
 }
 
 //------------------------------------------------------------------------------------
@@ -40,7 +43,7 @@ func NewPostgresStorage(cfg *config.Config, logger *zap.Logger) (*PostgresStorag
 	}, nil
 }
 
-func (ps PostgresStorage) Bootstrap(ctx context.Context) error {
+func (ps *PostgresStorage) Bootstrap(ctx context.Context) error {
 	tx, err := ps.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -64,7 +67,7 @@ func (ps PostgresStorage) Bootstrap(ctx context.Context) error {
 	return nil
 }
 
-func (ps PostgresStorage) SetGauge(ctx context.Context, key string, value float64) (err error) {
+func (ps *PostgresStorage) SetGauge(ctx context.Context, key string, value float64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
@@ -78,7 +81,9 @@ func (ps PostgresStorage) SetGauge(ctx context.Context, key string, value float6
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		_, err = ps.db.ExecContext(ctx, query, key, constants.Gauge, value)
+		ps.m.Unlock()
 		if err == nil {
 			return nil
 		}
@@ -96,7 +101,7 @@ func (ps PostgresStorage) SetGauge(ctx context.Context, key string, value float6
 	return err
 }
 
-func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value *int64) (err error) {
+func (ps *PostgresStorage) SetCounter(ctx context.Context, key string, value *int64) (err error) {
 	if key == "" {
 		err = fmt.Errorf("имя метрики обязательно для заполнения")
 		return
@@ -111,7 +116,9 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value *int
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		_, err = ps.db.ExecContext(ctx, query, key, constants.Counter, value)
+		ps.m.Unlock()
 		if err == nil {
 			val, err := ps.GetCounter(ctx, key)
 			if err == nil {
@@ -136,14 +143,16 @@ func (ps PostgresStorage) SetCounter(ctx context.Context, key string, value *int
 	return err
 }
 
-func (ps PostgresStorage) GetGauge(ctx context.Context, key string) (value float64, err error) {
+func (ps *PostgresStorage) GetGauge(ctx context.Context, key string) (value float64, err error) {
 	query := `
 	SELECT value FROM metrics WHERE id = $1 AND mtype = $2;
 	`
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		row := ps.db.QueryRowContext(ctx, query, key, constants.Gauge)
+		ps.m.Unlock()
 		err = row.Scan(&value)
 		if err == nil {
 			return
@@ -168,14 +177,16 @@ func (ps PostgresStorage) GetGauge(ctx context.Context, key string) (value float
 	return
 }
 
-func (ps PostgresStorage) GetCounter(ctx context.Context, key string) (value int64, err error) {
+func (ps *PostgresStorage) GetCounter(ctx context.Context, key string) (value int64, err error) {
 	query := `
 	SELECT delta FROM metrics WHERE id = $1 AND mtype = $2;
 	`
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		row := ps.db.QueryRowContext(ctx, query, key, constants.Counter)
+		ps.m.Unlock()
 		err = row.Scan(&value)
 		if err == nil {
 			return
@@ -200,7 +211,7 @@ func (ps PostgresStorage) GetCounter(ctx context.Context, key string) (value int
 	return
 }
 
-func (ps PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
+func (ps *PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 	query := `
 	SELECT id, value FROM metrics WHERE mtype = $1
 	`
@@ -210,7 +221,9 @@ func (ps PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		rows, err = ps.db.QueryContext(ctx, query, constants.Gauge)
+		ps.m.Unlock()
 		if err == nil {
 			break
 		}
@@ -247,7 +260,7 @@ func (ps PostgresStorage) GetAllGauge(ctx context.Context) map[string]float64 {
 	return gaugeMetrics
 }
 
-func (ps PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
+func (ps *PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 	query := `
 	SELECT id, delta FROM metrics WHERE mtype = $1
 	`
@@ -257,7 +270,9 @@ func (ps PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		rows, err = ps.db.QueryContext(ctx, query, constants.Counter)
+		ps.m.Unlock()
 		if err == nil {
 			break
 		}
@@ -293,7 +308,7 @@ func (ps PostgresStorage) GetAllCounter(ctx context.Context) map[string]int64 {
 	return counterMetrics
 }
 
-func (ps PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
+func (ps *PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
 
 	query := `
 	SELECT id, delta FROM metrics
@@ -303,7 +318,9 @@ func (ps PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
 
 	retries := 0
 	for retries < 4 {
+		ps.m.Lock()
 		rows, err = ps.db.QueryContext(ctx, query)
+		ps.m.Unlock()
 		if err == nil {
 			break
 		}
@@ -338,82 +355,170 @@ func (ps PostgresStorage) GetAll(ctx context.Context) map[string]interface{} {
 	return metrics
 }
 
-func (ps PostgresStorage) CheckConnection(ctx context.Context) (err error) {
+func (ps *PostgresStorage) CheckConnection(ctx context.Context) (err error) {
 	context, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	return ps.db.PingContext(context)
 }
 
-func (ps PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
-	tx, err := ps.db.Begin()
+func (ps *PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
+	return ps.withTx(ctx, func(tx *sql.Tx) error {
+		queryGauge := `
+		INSERT INTO metrics (id, mtype, value)
+		VALUES ($1, $2, $3) 
+		ON CONFLICT (id) DO UPDATE
+		SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;
+		`
+		queryCounter := `
+		INSERT INTO metrics (id, mtype, delta)
+		VALUES ($1, $2, $3) 
+		ON CONFLICT (id) DO UPDATE
+		SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
+		`
+
+		for i := 0; i <= ps.config.GetRetryCount(); i++ {
+
+			var error error
+
+			for _, metric := range metrics {
+				if metric.ID == "" {
+					error = fmt.Errorf("ошибка при сохранении в БД. Пустое имя метрики: %v", metric)
+					break
+				}
+				var zero float64 = 0
+				switch metric.MType {
+				case constants.Gauge:
+					if metric.Value == nil {
+						metric.Value = &zero
+					}
+					ps.m.Lock()
+					_, error = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
+					ps.m.Unlock()
+					if error != nil {
+						error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %w", metric.MType, metric.ID, &metric.Value, error)
+					}
+				case constants.Counter:
+					ps.m.Lock()
+					_, error = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
+					ps.m.Unlock()
+					if error != nil {
+						error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %v, %w", metric.MType, metric.ID, &metric.Delta, metric.Delta, error)
+					}
+				default:
+					error = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
+				}
+				if error != nil {
+					break
+				}
+			}
+			if error == nil {
+				break
+			}
+			if !isRetriableError(error) {
+				ps.logger.Error(error.Error())
+				return error
+			}
+			if i == ps.config.GetRetryCount() {
+				ps.logger.Error(error.Error())
+				return error
+			}
+			time.Sleep(time.Duration(i*2+1) * time.Second) // Backoff: 1s, 3s, 5s
+
+		}
+		return nil
+	})
+}
+
+// func (ps *PostgresStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
+// 	tx, err := ps.db.Begin()
+// 	if err != nil {
+// 		err = fmt.Errorf("failed to start transaction")
+// 		return err
+// 	}
+// 	defer tx.Rollback()
+
+// 	queryGauge := `
+// 	INSERT INTO metrics (id, mtype, value)
+// 	VALUES ($1, $2, $3)
+// 	ON CONFLICT (id) DO UPDATE
+// 	SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;
+// 	`
+// 	queryCounter := `
+// 	INSERT INTO metrics (id, mtype, delta)
+// 	VALUES ($1, $2, $3)
+// 	ON CONFLICT (id) DO UPDATE
+// 	SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
+// 	`
+// 	for i := 0; i <= ps.config.GetRetryCount(); i++ {
+
+// 		var error error
+
+// 		for _, metric := range metrics {
+// 			if metric.ID == "" {
+// 				error = fmt.Errorf("ошибка при сохранении в БД. Пустое имя метрики: %v", metric)
+// 				break
+// 			}
+// 			var zero float64 = 0
+// 			switch metric.MType {
+// 			case constants.Gauge:
+// 				if metric.Value == nil {
+// 					metric.Value = &zero
+// 				}
+// 				ps.m.Lock()
+// 				_, error = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
+// 				ps.m.Unlock()
+// 				if error != nil {
+// 					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %w", metric.MType, metric.ID, &metric.Value, error)
+// 				}
+// 			case constants.Counter:
+// 				ps.m.Lock()
+// 				_, error = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
+// 				ps.m.Unlock()
+// 				if error != nil {
+// 					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %v, %w", metric.MType, metric.ID, &metric.Delta, metric.Delta, error)
+// 				}
+// 			default:
+// 				error = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
+// 			}
+// 			if error != nil {
+// 				break
+// 			}
+// 		}
+// 		if error == nil {
+// 			break
+// 		}
+// 		if !isRetriableError(err) {
+// 			ps.logger.Error(error.Error())
+// 			return error
+// 		}
+// 		if i == ps.config.GetRetryCount() {
+// 			ps.logger.Error(error.Error())
+// 			return error
+// 		}
+// 		time.Sleep(time.Duration(i*2+1) * time.Second) // Backoff: 1s, 3s, 5s
+
+// 	}
+// 	return tx.Commit()
+// }
+
+func (ps *PostgresStorage) withTx(ctx context.Context, fn func(*sql.Tx) error) error {
+	tx, err := ps.db.BeginTx(ctx, nil)
 	if err != nil {
-		err = fmt.Errorf("failed to start transaction")
+		err = fmt.Errorf("begin transaction: %w", err)
+		ps.logger.Error(err.Error())
 		return err
 	}
 	defer tx.Rollback()
 
-	queryGauge := `
-	INSERT INTO metrics (id, mtype, value)
-	VALUES ($1, $2, $3) 
-	ON CONFLICT (id) DO UPDATE
-	SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;
-	`
-	queryCounter := `
-	INSERT INTO metrics (id, mtype, delta)
-	VALUES ($1, $2, $3) 
-	ON CONFLICT (id) DO UPDATE
-	SET mtype = EXCLUDED.mtype, delta = metrics.delta + EXCLUDED.delta;
-	`
-	for i := 0; i <= ps.config.GetRetryCount(); i++ {
-
-		var error error
-
-		for _, metric := range metrics {
-			if metric.ID == "" {
-				error = fmt.Errorf("ошибка при сохранении в БД. Пустое имя метрики: %v", metric)
-				break
-			}
-			var zero float64 = 0
-			switch metric.MType {
-			case constants.Gauge:
-				if metric.Value == nil {
-					metric.Value = &zero
-				}
-				_, error = tx.ExecContext(ctx, queryGauge, metric.ID, metric.MType, &metric.Value)
-				if error != nil {
-					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %w", metric.MType, metric.ID, &metric.Value, error)
-				}
-			case constants.Counter:
-				_, error = tx.ExecContext(ctx, queryCounter, metric.ID, metric.MType, &metric.Delta)
-				if error != nil {
-					error = fmt.Errorf("ошибка при сохранении %s в бд: %s, %v, %v, %w", metric.MType, metric.ID, &metric.Delta, metric.Delta, error)
-				}
-			default:
-				error = fmt.Errorf("неверный формат для обновления метрик (недопустимый тип): %s", metric.MType)
-			}
-			if error != nil {
-				break
-			}
-		}
-		if error == nil {
-			break
-		}
-		if !isRetriableError(err) {
-			ps.logger.Error(error.Error())
-			return error
-		}
-		if i == ps.config.GetRetryCount() {
-			ps.logger.Error(error.Error())
-			return error
-		}
-		time.Sleep(time.Duration(i*2+1) * time.Second) // Backoff: 1s, 3s, 5s
-
+	if err := fn(tx); err != nil {
+		ps.logger.Error(err.Error())
+		return err
 	}
 	return tx.Commit()
 }
 
-func (ps PostgresStorage) GetAllMetricsInJSON() []models.Metrics {
+func (ps *PostgresStorage) GetAllMetricsInJSON() []models.Metrics {
 	metrics := []models.Metrics{}
 	return metrics
 }

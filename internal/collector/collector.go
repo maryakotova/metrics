@@ -4,8 +4,8 @@ import (
 	"math/rand/v2"
 	"runtime"
 
-	"github.com/maryakotova/metrics/internal/constants"
-	"github.com/maryakotova/metrics/internal/models"
+	"metrics/internal/constants"
+	"metrics/internal/models"
 )
 
 var pollCount int64

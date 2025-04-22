@@ -1,33 +1,25 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"text/template"
 
-	"github.com/maryakotova/metrics/internal/config"
-	"github.com/maryakotova/metrics/internal/constants"
-	"github.com/maryakotova/metrics/internal/controller"
-	"github.com/maryakotova/metrics/internal/filetransfer"
-	"github.com/maryakotova/metrics/internal/models"
+	"metrics/internal/authsign"
+	"metrics/internal/config"
+	"metrics/internal/constants"
+	"metrics/internal/controller"
+	"metrics/internal/filetransfer"
+	"metrics/internal/models"
+
 	"go.uber.org/zap"
 )
 
 // const tplPath string = "./templates/metrics.html"
 const tplPath string = "templates/metrics.html"
-
-// type DataStorage interface {
-// 	SetGauge(ctx context.Context, key string, value float64) (err error)
-// 	SetCounter(ctx context.Context, key string, value *int64) (err error)
-// 	SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error)
-// 	GetAllGauge(ctx context.Context) map[string]float64
-// 	GetAllCounter(ctx context.Context) map[string]int64
-// 	GetGauge(ctx context.Context, key string) (value float64, err error)
-// 	GetCounter(ctx context.Context, key string) (value int64, err error)
-// 	CheckConnection(ctx context.Context) (err error)
-// }
 
 // ----------------------------------------------------------------------
 //fileWriter должен остаться в сервере? или перейти в контроллер?
@@ -55,6 +47,27 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 		return
 	}
 
+	receivedHash := req.Header.Get(constants.HeaderSig)
+	if receivedHash != "" {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(req.Body)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		body := buf.Bytes()
+		if !authsign.VerifySig(receivedHash, []byte(body), []byte(server.config.SecretKey)) {
+			err = fmt.Errorf("invalid hash")
+			server.logger.Error(err.Error())
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	// ----------------------------------------------------------------------------------------------------------------------------------------------
+	// При наличии ключа на этапе формирования ответа сервер должен вычислять хеш и передавать его в HTTP-заголовке ответа с именем HashSHA256.
+	// Сервер должен отправлять тот же самый хэш? или новый в зависимости от ответа?
+	// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 	var request models.Metrics
 
 	dec := json.NewDecoder(req.Body)
@@ -76,7 +89,7 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 
 	responce := request
 
-	res.Header().Set("Content-Type", "Content-Type: application/json")
+	res.Header().Set("Content-Type", "application/json")
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(responce); err != nil {
@@ -99,6 +112,23 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 		return
 	}
 
+	receivedHash := req.Header.Get(constants.HeaderSig)
+	if receivedHash != "" {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(req.Body)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		body := buf.Bytes()
+		if !authsign.VerifySig(receivedHash, []byte(body), []byte(server.config.SecretKey)) {
+			err = fmt.Errorf("invalid hash")
+			server.logger.Error(err.Error())
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
 	metricType := req.PathValue("metricType")
 	metricName := req.PathValue("metricName")
 	metricValue := req.PathValue("metricValue")
@@ -112,7 +142,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	res.Header().Set("Content-Type", "Content-Type: application/json")
+	res.Header().Set("Content-Type", "application/json")
 
 	// ----------------------------------------------------------------------
 	//как правильно заполнить responce в данной ситуации (value и delta) ?
@@ -154,6 +184,23 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
+	}
+
+	receivedHash := req.Header.Get(constants.HeaderSig)
+	if receivedHash != "" {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(req.Body)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		body := buf.Bytes()
+		if !authsign.VerifySig(receivedHash, []byte(body), []byte(server.config.SecretKey)) {
+			err = fmt.Errorf("invalid hash")
+			server.logger.Error(err.Error())
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	var request models.Metrics
@@ -275,10 +322,29 @@ func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Req
 		return
 	}
 
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(req.Body)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	body := buf.Bytes()
+
+	receivedHash := req.Header.Get(constants.HeaderSig)
+	if receivedHash != "" {
+		if !authsign.VerifySig(receivedHash, []byte(body), []byte(server.config.SecretKey)) {
+			err = fmt.Errorf("invalid hash")
+			server.logger.Error(err.Error())
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
 	var request []models.Metrics
 
-	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&request); err != nil {
+	// decoder := json.NewDecoder(req.Body)
+	// if err := decoder.Decode(&request); err != nil {
+	if err = json.Unmarshal([]byte(body), &request); err != nil {
 		err = fmt.Errorf("ошибка в JSON: %w", err)
 		server.logger.Error(err.Error())
 		res.WriteHeader(http.StatusInternalServerError)

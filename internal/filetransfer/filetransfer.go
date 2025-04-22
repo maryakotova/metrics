@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/maryakotova/metrics/internal/models"
+	"metrics/internal/models"
 )
 
 type FileReader struct {
