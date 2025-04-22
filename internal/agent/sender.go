@@ -15,7 +15,7 @@ import (
 	"metrics/internal/models"
 )
 
-func (agent *Agent) PrepareMetrics(metrics map[string]interface{}) []models.MetricsForSend {
+func (agent *Agent) PrepareMetrics(metrics map[string]any) []models.MetricsForSend {
 	metricsForJSON := []models.MetricsForSend{}
 
 	for key, value := range metrics {

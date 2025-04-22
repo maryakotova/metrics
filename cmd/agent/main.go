@@ -2,6 +2,9 @@ package main
 
 import (
 	"metrics/internal/agent"
+
+	"net/http"
+	//_ "net/http/pprof"
 )
 
 func main() {
@@ -24,6 +27,11 @@ func main() {
 
 	agent.WG.Add(1)
 	go agent.HandleErrors()
+
+	go func() {
+		// log.Info("pprof listening on :6060")
+		http.ListenAndServe("localhost:6061", nil) // <- DefaultServeMux
+	}()
 
 	agent.WG.Wait()
 

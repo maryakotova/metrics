@@ -21,17 +21,6 @@ import (
 // const tplPath string = "./templates/metrics.html"
 const tplPath string = "templates/metrics.html"
 
-// type DataStorage interface {
-// 	SetGauge(ctx context.Context, key string, value float64) (err error)
-// 	SetCounter(ctx context.Context, key string, value *int64) (err error)
-// 	SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error)
-// 	GetAllGauge(ctx context.Context) map[string]float64
-// 	GetAllCounter(ctx context.Context) map[string]int64
-// 	GetGauge(ctx context.Context, key string) (value float64, err error)
-// 	GetCounter(ctx context.Context, key string) (value int64, err error)
-// 	CheckConnection(ctx context.Context) (err error)
-// }
-
 // ----------------------------------------------------------------------
 //fileWriter должен остаться в сервере? или перейти в контроллер?
 // ----------------------------------------------------------------------

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	//_ "net/http/pprof"
+
 	"metrics/internal/config"
 	"metrics/internal/controller"
 	"metrics/internal/filetransfer"
@@ -63,55 +65,6 @@ func main() {
 		worker.TriggerGoFunc(ticker, task)
 	}
 
-	// var ctrl *controller.Controller
-
-	// var server *handlers.Server
-
-	// if dbDsn != "" {
-	// 	db, err := sql.Open("pgx", dbDsn)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	defer db.Close()
-
-	// 	postgresStorage := postgres.NewPostgresStorage(db, log, constants.RetryCount)
-	// 	err = postgresStorage.Bootstrap(context.TODO())
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	ctrl = controller.NewController(postgresStorage, log)
-	// 	server = handlers.NewServer(false, nil, log, ctrl)
-	// }
-
-	// if filePath != "" {
-	// 	memStorage := inmemory.NewMemStorage()
-	// 	if restore {
-	// 		memStorage.UploadData(filePath)
-	// 	}
-	// 	writer, err := filetransfer.NewFileWriter(filePath)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	defer writer.Close()
-
-	// 	var syncFileWrite bool
-	// 	if interval == 0 {
-	// 		syncFileWrite = true
-	// 	} else {
-	// 		ticker := time.NewTicker(time.Duration(interval) * time.Second)
-	// 		defer ticker.Stop()
-	// 		task := func() {
-	// 			metrics := memStorage.GetAllMetricsInJSON()
-	// 			writer.WriteMetrics(metrics...)
-	// 		}
-	// 		worker.TriggerGoFunc(ticker, task)
-	// 	}
-
-	// 	ctrl = controller.NewController(memStorage, log)
-	// 	server = handlers.NewServer(syncFileWrite, writer, log, ctrl)
-	// }
-
 	router := chi.NewRouter()
 	router.Use()
 
@@ -126,10 +79,16 @@ func main() {
 
 	router.Get("/ping", logger.WithLogging(gzipMiddleware(server.HandlePing)))
 
+	go func() {
+		log.Info("pprof listening on :6060")
+		http.ListenAndServe("localhost:6060", nil) // <- DefaultServeMux
+	}()
+
 	err = http.ListenAndServe(config.Server.ServerAddress, router)
 	if err != nil {
 		panic(err)
 	}
+
 }
 
 func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
