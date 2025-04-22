@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Интерфейс для взаимодействия с хранилищем метрик
 type Storage interface {
 	SetGauge(ctx context.Context, key string, value float64) (err error)
 	SetCounter(ctx context.Context, key string, value *int64) (err error)
