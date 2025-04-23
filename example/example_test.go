@@ -14,25 +14,25 @@ import (
 const ServerAddr = "http://localhost:8080"
 
 func Example_updateJSON() {
-	resp, err := sendMetric()
+	statusCode, err := sendMetric()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	fmt.Printf("Статус ответа: %d\n", resp.StatusCode)
+	fmt.Printf("Статус ответа: %d\n", statusCode)
 	// Output: Статус ответа: 200
 }
 
 func Example_getValue() {
-	resp, err := sendMetric()
+	statusCode, err := sendMetric()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Запрос не был обработан успешноб статус: %d\n", resp.StatusCode)
+	if statusCode != http.StatusOK {
+		fmt.Printf("Запрос не был обработан успешноб статус: %d\n", statusCode)
 		return
 	}
 
@@ -55,9 +55,9 @@ func Example_getValue() {
 		return
 	}
 
-	resp, err = http.DefaultClient.Do(request)
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
-		fmt.Printf("Ошибка при отпарке запроса: %w\n", err)
+		fmt.Printf("Ошибка при отпарке запроса: %s\n", err)
 		return
 	}
 
@@ -75,7 +75,7 @@ func Example_getValue() {
 
 }
 
-func sendMetric() (resp *http.Response, err error) {
+func sendMetric() (StatusCode int, err error) {
 	metric := models.Metrics{
 		ID:    "TestGauge",
 		MType: constants.Gauge,
@@ -86,22 +86,22 @@ func sendMetric() (resp *http.Response, err error) {
 	jsonData, err := json.Marshal(metric)
 	if err != nil {
 		err = fmt.Errorf("Ошибка при переводе в JSON: %v\n", err)
-		return nil, err
+		return 0, err
 	}
 
 	request, err := http.NewRequest(http.MethodPost, ServerAddr+"/update", bytes.NewBuffer(jsonData))
 	if err != nil {
 		err = fmt.Errorf("Ошибка при создании запроса: %v\n", err)
-		return nil, err
+		return 0, err
 	}
 
-	resp, err = http.DefaultClient.Do(request)
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		err = fmt.Errorf("Ошибка при отпарке запроса: %w\n", err)
-		return nil, err
+		return 0, err
 	}
 
 	defer resp.Body.Close()
 
-	return resp, nil
+	return resp.StatusCode, nil
 }
