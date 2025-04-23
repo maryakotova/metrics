@@ -1,5 +1,5 @@
-// Пакет example_test предоставляет примеры использования сервера метрик.
-package example_test
+// Пакет handler_test предоставляет примеры использования сервера метрик.
+package handlers_test
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 
 const ServerAddr = "http://localhost:8080"
 
-func Example_updateJSON() {
+func ExampleServer_HandleMetricUpdateViaJSON() {
 	statusCode, err := sendMetric()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -24,7 +24,7 @@ func Example_updateJSON() {
 	// Output: Статус ответа: 200
 }
 
-func Example_getValue() {
+func ExampleServer_HandleGetOneMetricViaJSON() {
 	statusCode, err := sendMetric()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -104,4 +104,23 @@ func sendMetric() (StatusCode int, err error) {
 	defer resp.Body.Close()
 
 	return resp.StatusCode, nil
+}
+
+func ExampleServer_HandlePing() {
+	request, err := http.NewRequest(http.MethodGet, ServerAddr+"/ping", nil)
+	if err != nil {
+		fmt.Printf("Ошибка при создании запроса: %v\n", err)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		fmt.Printf("Ошибка при отпарке запроса: %s\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Printf("Статус ответа: %d\n", resp.StatusCode)
+	// Output: Статус ответа: 200
+
 }

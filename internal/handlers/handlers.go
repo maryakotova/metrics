@@ -44,10 +44,6 @@ func NewServer(cfg *config.Config, fileWriter *filetransfer.FileWriter, logger *
 
 // Обработка POST запроса на обновление метрик  в формате JSON.
 func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	receivedHash := req.Header.Get(constants.HeaderSig)
 	if receivedHash != "" {
@@ -110,10 +106,6 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 
 // Обработка POST запроса на обновление метрик без тела запроса.
 func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	receivedHash := req.Header.Get(constants.HeaderSig)
 	if receivedHash != "" {
@@ -186,10 +178,6 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 
 // Обработка POST запроса на получение значения метрики с использование JSON формата в теле запроса.
 func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	receivedHash := req.Header.Get(constants.HeaderSig)
 	if receivedHash != "" {
@@ -242,10 +230,6 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 
 // Обработка GET запроса на получение значения метрики.
 func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	res.Header().Set("Content-Type", "text/plain")
 
@@ -274,10 +258,6 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 
 // Обработка GET запроса на получение значений всех метрик.
 func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	res.Header().Set("Content-Type", "text/html")
 
@@ -307,10 +287,6 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 
 // Обработка GET запроса на проверку подключения к БД.
 func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	res.Header().Set("Content-Type", "text/plain")
 
@@ -326,10 +302,6 @@ func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
 
 // Обработка POST запроса на обновление метрик пакетом.
 func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	buf := new(bytes.Buffer)
 	_, err := buf.ReadFrom(req.Body)
