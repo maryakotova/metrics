@@ -1,5 +1,5 @@
 // Пакет handler_test предоставляет примеры использования сервера метрик.
-package handlers_test
+package handlers
 
 import (
 	"bytes"
