@@ -1,3 +1,4 @@
+// В пакете handlers реализована работа всех эндпойнтов сервиса.
 package handlers
 
 import (
@@ -17,8 +18,6 @@ import (
 
 	"go.uber.org/zap"
 )
-
-// const tplPath string = "./templates/metrics.html"
 
 const tplPath string = "templates/metrics.html"
 

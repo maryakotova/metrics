@@ -1,3 +1,4 @@
+// В пакете sender реализована отправка метрик на сервер.
 package sender
 
 import (

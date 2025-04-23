@@ -1,3 +1,4 @@
+// Пакет filetransfer отвечаает за выгрузку метрик в локальный файл в формате JSON.
 package filetransfer
 
 import (

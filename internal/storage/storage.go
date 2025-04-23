@@ -1,3 +1,4 @@
+// В пакете storage реализован паттерн factory для создания необходимого типа хранилища.
 package storage
 
 import (
@@ -11,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Интерфейс для взаимодействия с хранилищем метрик
+// Интерфейс Storage необходим для взаимодействия с хранилищем метрик.
 type Storage interface {
 	SetGauge(ctx context.Context, key string, value float64) (err error)
 	SetCounter(ctx context.Context, key string, value *int64) (err error)
@@ -26,6 +27,7 @@ type Storage interface {
 
 type StorageFactory struct{}
 
+// NewStorage реализует паттерн Factory и создает необходимый вид хранилища в зависимости от полученных настроек.
 func (f *StorageFactory) NewStorage(cfg *config.Config, logger *zap.Logger) (Storage, error) {
 	if cfg.IsDatabaseEnabled() {
 		postgres, err := postgres.NewPostgresStorage(cfg, logger)

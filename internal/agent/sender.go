@@ -121,7 +121,7 @@ func (agent *Agent) doUpdatesRequest(metrics []models.MetricsForSend) error {
 
 	url := fmt.Sprintf("http://%s/updates/", agent.ServerAddress)
 
-	request, err := http.NewRequest("POST", url, bytes.NewBuffer(buf.Bytes()))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(buf.Bytes()))
 	if err != nil {
 		fmt.Println("Error sending request: %w\n", err)
 		return err

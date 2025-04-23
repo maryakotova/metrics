@@ -1,3 +1,4 @@
+// Пакет collector используется для сбора метрик.
 package collector
 
 import (
