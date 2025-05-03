@@ -1,3 +1,4 @@
+// Пакет postgres реализует хранение метриик в БД PostgreSQL.
 package postgres
 
 import (

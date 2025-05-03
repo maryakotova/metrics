@@ -9,7 +9,6 @@ require (
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.7.4
-	github.com/maryakotova/metrics v0.0.0-20250219065539-aa6b7e1af63e
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0

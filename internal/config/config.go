@@ -1,3 +1,4 @@
+// В пакете config происходит создание объекта Config, отвечающего за настройки сервиса.
 package config
 
 import "metrics/internal/constants"
@@ -6,12 +7,14 @@ import "metrics/internal/constants"
 // должны ли быть поля структуры Config публичными? или нужно сделать приватными и метод для доступа к каждому параметру?
 //-----------------------------------------------------------------------------------------------------------------------
 
+// Config - настройки используемые сервисом.
 type Config struct {
 	Server    ServerConfig
 	Database  DatabaseConfig
 	SecretKey string
 }
 
+// ServerConfig- серверная часть настроек.
 type ServerConfig struct {
 	ServerAddress   string
 	StoreInterval   int64  // Интервал сохранения метрик на сервере в секундах
@@ -19,6 +22,7 @@ type ServerConfig struct {
 	Restore         bool   // Загружать или нет ранее сохраненные метрики из файла
 }
 
+// DatabaseConfig - настройки относящиеся к уровню БД.
 type DatabaseConfig struct {
 	DatabaseDsn string
 	RetryCount  int //количество повторений при ошибках подключения

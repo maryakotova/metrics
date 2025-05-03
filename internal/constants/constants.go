@@ -1,3 +1,4 @@
+// В пакете constants хранятся глобальные константы.
 package constants
 
 const (

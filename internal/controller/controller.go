@@ -1,3 +1,4 @@
+// В пакете controller реализовано взаимодействия между HTTP-хендлерами и хранилищем метрик.
 package controller
 
 import (
@@ -8,30 +9,17 @@ import (
 
 	"metrics/internal/constants"
 	"metrics/internal/models"
+	"metrics/internal/storage"
 
 	"go.uber.org/zap"
 )
 
-// const tplPath string = "./templates/metrics.html"
-// const tplPath string = "templates/metrics.html"
-
-type DataStorage interface {
-	SetGauge(ctx context.Context, key string, value float64) (err error)
-	SetCounter(ctx context.Context, key string, value *int64) (err error)
-	SaveMetrics(ctx context.Context, metrics []models.Metrics) (err error)
-	GetAllGauge(ctx context.Context) map[string]float64
-	GetAllCounter(ctx context.Context) map[string]int64
-	GetGauge(ctx context.Context, key string) (value float64, err error)
-	GetCounter(ctx context.Context, key string) (value int64, err error)
-	CheckConnection(ctx context.Context) (err error)
-}
-
 type Controller struct {
-	storage DataStorage
+	storage storage.Storage
 	logger  *zap.Logger
 }
 
-func NewController(storage DataStorage, logger *zap.Logger) *Controller {
+func NewController(storage storage.Storage, logger *zap.Logger) *Controller {
 	return &Controller{
 		storage: storage,
 		logger:  logger,

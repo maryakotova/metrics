@@ -1,3 +1,4 @@
+// В пакете handlers реализована работа всех эндпойнтов сервиса.
 package handlers
 
 import (
@@ -18,13 +19,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// const tplPath string = "./templates/metrics.html"
 const tplPath string = "templates/metrics.html"
 
 // ----------------------------------------------------------------------
 //fileWriter должен остаться в сервере? или перейти в контроллер?
 // ----------------------------------------------------------------------
 
+// Структура сервера отвечающего за отбработку запросов.
 type Server struct {
 	config     *config.Config
 	fileWriter *filetransfer.FileWriter
@@ -41,11 +42,8 @@ func NewServer(cfg *config.Config, fileWriter *filetransfer.FileWriter, logger *
 	}
 }
 
+// Обработка POST запроса на обновление метрик  в формате JSON.
 func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	receivedHash := req.Header.Get(constants.HeaderSig)
 	if receivedHash != "" {
@@ -106,11 +104,8 @@ func (server *Server) HandleMetricUpdateViaJSON(res http.ResponseWriter, req *ht
 	}
 }
 
+// Обработка POST запроса на обновление метрик без тела запроса.
 func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	receivedHash := req.Header.Get(constants.HeaderSig)
 	if receivedHash != "" {
@@ -147,6 +142,7 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	// ----------------------------------------------------------------------
 	//как правильно заполнить responce в данной ситуации (value и delta) ?
 	// ----------------------------------------------------------------------
+
 	responce := models.Metrics{
 		ID:    metricName,
 		MType: metricType,
@@ -180,11 +176,8 @@ func (server *Server) HandleMetricUpdate(res http.ResponseWriter, req *http.Requ
 	}
 }
 
+// Обработка POST запроса на получение значения метрики с использование JSON формата в теле запроса.
 func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	receivedHash := req.Header.Get(constants.HeaderSig)
 	if receivedHash != "" {
@@ -235,11 +228,8 @@ func (server *Server) HandleGetOneMetricViaJSON(res http.ResponseWriter, req *ht
 	res.WriteHeader(http.StatusOK)
 }
 
+// Обработка GET запроса на получение значения метрики.
 func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	res.Header().Set("Content-Type", "text/plain")
 
@@ -266,11 +256,8 @@ func (server *Server) HandleGetOneMetric(res http.ResponseWriter, req *http.Requ
 	}
 }
 
+// Обработка GET запроса на получение значений всех метрик.
 func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	res.Header().Set("Content-Type", "text/html")
 
@@ -298,11 +285,8 @@ func (server *Server) HandleGetAllMetrics(res http.ResponseWriter, req *http.Req
 	res.WriteHeader(http.StatusOK)
 }
 
+// Обработка GET запроса на проверку подключения к БД.
 func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	res.Header().Set("Content-Type", "text/plain")
 
@@ -316,11 +300,8 @@ func (server *Server) HandlePing(res http.ResponseWriter, req *http.Request) {
 	res.Write([]byte("Connection is successful"))
 }
 
+// Обработка POST запроса на обновление метрик пакетом.
 func (server *Server) HandleMetricUpdates(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	buf := new(bytes.Buffer)
 	_, err := buf.ReadFrom(req.Body)

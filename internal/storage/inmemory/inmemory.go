@@ -1,3 +1,4 @@
+// В пакете inmemory реализовано локальное хранение метрик памяти.
 package inmemory
 
 import (

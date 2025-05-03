@@ -1,3 +1,4 @@
+// В пакет middleware реализована возможность принимать запросы в сжатом формате и отдавать сжатый ответ клиенту.
 package middleware
 
 import (
@@ -5,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type compressWriter struct {
@@ -68,31 +70,31 @@ func (c *compressReader) Close() error {
 	return c.zr.Close()
 }
 
-// func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		ow := w
+func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ow := w
 
-// 		supportsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
-// 		supportsGzipJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
-// 		supportsGzipHTML := strings.Contains(r.Header.Get("Accept"), "text/html")
-// 		if supportsGzip && (supportsGzipJSON || supportsGzipHTML) {
-// 			cw := newCompressWriter(w)
-// 			ow = cw
-// 			defer cw.Close()
-// 			ow.Header().Set("Content-Encoding", "gzip")
-// 		}
+		supportsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
+		supportsGzipJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
+		supportsGzipHTML := strings.Contains(r.Header.Get("Accept"), "text/html")
+		if supportsGzip && (supportsGzipJSON || supportsGzipHTML) {
+			cw := NewCompressWriter(w)
+			ow = cw
+			defer cw.Close()
+			ow.Header().Set("Content-Encoding", "gzip")
+		}
 
-// 		sendsGzip := strings.Contains(r.Header.Get("Content-Encoding"), "gzip")
-// 		if sendsGzip {
-// 			cr, err := newCompressReader(r.Body)
-// 			if err != nil {
-// 				w.WriteHeader(http.StatusInternalServerError)
-// 				return
-// 			}
-// 			r.Body = cr
-// 			defer cr.Close()
-// 		}
+		sendsGzip := strings.Contains(r.Header.Get("Content-Encoding"), "gzip")
+		if sendsGzip {
+			cr, err := NewCompressReader(r.Body)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			r.Body = cr
+			defer cr.Close()
+		}
 
-// 		h.ServeHTTP(ow, r)
-// 	}
-// }
+		h.ServeHTTP(ow, r)
+	}
+}
