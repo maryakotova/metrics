@@ -14,7 +14,7 @@ type Config struct {
 	SecretKey string
 }
 
-// ServerConfi- серверная часть настроек.
+// ServerConfig- серверная часть настроек.
 type ServerConfig struct {
 	ServerAddress   string
 	StoreInterval   int64  // Интервал сохранения метрик на сервере в секундах

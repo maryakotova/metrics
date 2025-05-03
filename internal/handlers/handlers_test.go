@@ -32,7 +32,7 @@ func ExampleServer_HandleGetOneMetricViaJSON() {
 	}
 
 	if statusCode != http.StatusOK {
-		fmt.Printf("Запрос не был обработан успешноб статус: %d\n", statusCode)
+		fmt.Printf("Запрос не был обработан успешно, статус: %d\n", statusCode)
 		return
 	}
 
