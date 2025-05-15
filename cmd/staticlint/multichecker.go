@@ -1,10 +1,42 @@
+// В пакете main реализован мультичекер для анализа кода с заранее выбранными анализаторами.
+//
+// # Обзор
+//
+// Мультичекер состоит  из:
+// - стандартных статических анализаторов пакета golang.org/x/tools/go/analysis/passes;
+// - всех анализаторов класса SA пакета staticcheck.io;
+// - анализаторов классов S1 и ST1 пакета staticcheck.io;
+// - двух публичных анализаторов
+//
+// # Использование
+//
+// Для запуска мультичекера необходимо выполнить команду:
+//
+// go run cmd/staticlint/multichecker.go [список необходимых пакетов]
+//
+// # Конфигурация
+//
+// Список анализаторов классов S1 и ST1 можно изменять с помощью файла config.json
+// Если при чтении данных из файла возникла ошибка, мультичекер не прекратит свою работу, будут использованы остальные анализаторы
+//
+// Пример данных из файла config.json:
+//
+//	{
+//	    "staticcheck": [
+//	        "S1000",
+//	        "ST1002"
+//	    ]
+//	}
 package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"metrics/cmd/staticlint/safeexit"
 	"os"
-	"path/filepath"
+
+	"github.com/nishanths/exhaustive"
+	"github.com/timakin/bodyclose/passes/bodyclose"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
@@ -17,8 +49,10 @@ import (
 	"honnef.co/go/tools/staticcheck"
 )
 
-const Config = `config.json`
+// путь к файлу
+const Config = `C:/Users/marya/go/src/metrics/cmd/staticlint/config.json` //`config.json`
 
+// список проверок из файла config.json
 type ConfigData struct {
 	Staticcheck []string
 }
@@ -33,12 +67,17 @@ func main() {
 		nilness.Analyzer,
 		unreachable.Analyzer,
 		inspect.Analyzer,
+		safeexit.SafeExitAnalyzer,
+		// публичные анализаторы
+		bodyclose.Analyzer,
+		exhaustive.Analyzer,
 	}
 
 	// все анализаторы класса SA пакета staticcheck.io
 	mychecks = addSAAnalyzers(mychecks)
 
 	// анализаторы из файла config.json (анализаторы классов S1 и ST1 пакета staticcheck.io)
+	// если при чтении данных из файла возникла ошибка, мультичекер не прекращает свою работу
 	mychecks, err := addAnalyzerFromConfig(mychecks)
 	if err != nil {
 		err = fmt.Errorf("ошибка при чтении настроек из файла: %w, анализаторы будут запущены без использования настроек", err)
@@ -48,10 +87,9 @@ func main() {
 	multichecker.Main(
 		mychecks...,
 	)
-
 }
 
-// все анализаторы класса SA пакета staticcheck.io
+// addSAAnalyzers добавляет все анализаторы класса SA пакета staticcheck.io
 func addSAAnalyzers(checks []*analysis.Analyzer) []*analysis.Analyzer {
 	for _, a := range staticcheck.Analyzers {
 		checks = append(checks, a.Analyzer)
@@ -60,13 +98,15 @@ func addSAAnalyzers(checks []*analysis.Analyzer) []*analysis.Analyzer {
 	return checks
 }
 
-// анализаторы из файла config.json (анализаторы классов S1 и ST1 пакета staticcheck.io)
+// addAnalyzerFromConfig добавляет анализаторы из файла config.json (анализаторы классов S1 и ST1 пакета staticcheck.io)
 func addAnalyzerFromConfig(checks []*analysis.Analyzer) ([]*analysis.Analyzer, error) {
-	appfile, err := os.Executable()
-	if err != nil {
-		return checks, err
-	}
-	data, err := os.ReadFile(filepath.Join(filepath.Dir(appfile), Config))
+
+	// appfile, err := os.Executable()
+	// if err != nil {
+	// 	return checks, err
+	// }
+
+	data, err := os.ReadFile(Config) //(filepath.Join(filepath.Dir(appfile), Config))
 	if err != nil {
 		return checks, err
 	}
