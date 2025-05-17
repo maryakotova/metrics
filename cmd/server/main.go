@@ -23,6 +23,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -41,7 +42,16 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// глобальные переменные с информацией о версии
+var (
+	BuildVersion = "N/A"
+	BuildDate    = "N/A"
+	BuildCommit  = "N/A"
+)
+
 func main() {
+
+	printVersionInfo()
 
 	flags, err := config.ParseFlags()
 	if err != nil {
@@ -109,4 +119,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func printVersionInfo() {
+	fmt.Printf("Build version: %s\n", BuildVersion)
+	fmt.Printf("Build date: %s\n", BuildDate)
+	fmt.Printf("Build commit: %s\n", BuildCommit)
 }
