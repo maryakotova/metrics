@@ -7,11 +7,12 @@ import (
 )
 
 type Config struct {
-	ServerAddress  string
-	ReportInterval int64
-	PollInterval   int64
-	SecretKey      string
-	RateLimit      int
+	ServerAddress   string
+	ReportInterval  int64
+	PollInterval    int64
+	SecretKey       string
+	RateLimit       int
+	PublicCryptoKey string //`env:"CRYPTO_KEY"`
 }
 
 func ParseFlags() (*Config, error) {
@@ -24,6 +25,7 @@ func ParseFlags() (*Config, error) {
 	flag.Int64Var(&cfg.PollInterval, "p", 2, "Частота опроса метрик из пакета runtime")
 	flag.StringVar(&cfg.SecretKey, "k", "", "Ключ для подписи передаваемых данных")
 	flag.IntVar(&cfg.RateLimit, "l", 4, "Количество одновременно исходящих запросов на сервер")
+	flag.StringVar(&cfg.PublicCryptoKey, "crypto-key", "./key/cert.pem", "Путь до файла с публичным ключом")
 
 	//аргументы командной строки
 	flag.Parse()
@@ -56,6 +58,10 @@ func ParseFlags() (*Config, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if publicKey := os.Getenv("CRYPTO_KEY"); publicKey != "" {
+		cfg.PublicCryptoKey = publicKey
 	}
 
 	return &cfg, nil

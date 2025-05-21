@@ -22,7 +22,8 @@ type Flags struct {
 	Database struct {
 		DatabaseDsn string //`env:"DATABASE_DSN"`
 	}
-	SecretKey string //`env:"KEY"`
+	SecretKey        string //`env:"KEY"`
+	PrivateCryptoKey string //`env:"CRYPTO_KEY"`
 }
 
 // В функции ParseFlags происходит парсинг аргументов командной строки и получение значений из переменных окружения.
@@ -37,6 +38,7 @@ func ParseFlags() (*Flags, error) {
 	flag.BoolVar(&flags.Server.Restore, "r", true, "Загрузка ранее сохранённые значения из указанного файла при старте сервера")
 	flag.StringVar(&flags.Database.DatabaseDsn, "d", "", "Строка c адресом подключения к БД") //"host=localhost user=metrics password=test dbname=metrics sslmode=disable"
 	flag.StringVar(&flags.SecretKey, "k", "", "Ключ для подписи передаваемых данных")
+	flag.StringVar(&flags.PrivateCryptoKey, "crypto-key", "./key/private_key.pem", "Путь до файла с приватным ключом")
 
 	//аргументы командной строки
 	flag.Parse()
@@ -70,6 +72,10 @@ func ParseFlags() (*Flags, error) {
 
 	if envKey := os.Getenv("KEY"); envKey != "" {
 		flags.SecretKey = envKey
+	}
+
+	if privateKey := os.Getenv("CRYPTO_KEY"); privateKey != "" {
+		flags.PrivateCryptoKey = privateKey
 	}
 
 	return &flags, nil
