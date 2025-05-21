@@ -31,6 +31,7 @@ import (
 
 	"metrics/internal/config"
 	"metrics/internal/controller"
+	"metrics/internal/decryptmiddleware"
 	"metrics/internal/filetransfer"
 	"metrics/internal/handlers"
 	"metrics/internal/logger"
@@ -96,19 +97,21 @@ func main() {
 		worker.TriggerGoFunc(ticker, task)
 	}
 
+	dmw := decryptmiddleware.NewDecrypteMW(config, log)
+
 	router := chi.NewRouter()
 	router.Use()
 
-	router.Get("/", logger.WithLogging(middleware.GzipMiddleware(server.HandleGetAllMetrics)))
+	router.Get("/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleGetAllMetrics))))
 
-	router.Get("/value/{metricType}/{metricName}", logger.WithLogging(middleware.GzipMiddleware(server.HandleGetOneMetric)))
-	router.Post("/value/", logger.WithLogging(middleware.GzipMiddleware(server.HandleGetOneMetricViaJSON)))
+	router.Get("/value/{metricType}/{metricName}", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleGetOneMetric))))
+	router.Post("/value/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleGetOneMetricViaJSON))))
 
-	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(middleware.GzipMiddleware(server.HandleMetricUpdate)))
-	router.Post("/update/", logger.WithLogging(middleware.GzipMiddleware(server.HandleMetricUpdateViaJSON)))
-	router.Post("/updates/", logger.WithLogging(middleware.GzipMiddleware(server.HandleMetricUpdates)))
+	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleMetricUpdate))))
+	router.Post("/update/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleMetricUpdateViaJSON))))
+	router.Post("/updates/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleMetricUpdates))))
 
-	router.Get("/ping", logger.WithLogging(middleware.GzipMiddleware(server.HandlePing)))
+	router.Get("/ping", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandlePing))))
 
 	go func() {
 		log.Info("pprof listening on :6060")

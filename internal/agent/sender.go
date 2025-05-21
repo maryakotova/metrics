@@ -12,6 +12,7 @@ import (
 
 	"metrics/internal/authsign"
 	"metrics/internal/constants"
+	"metrics/internal/cryptoutil"
 	"metrics/internal/models"
 )
 
@@ -98,49 +99,68 @@ func (agent *Agent) SendMetricsBatch(metrics []models.MetricsForSend) error {
 }
 
 func (agent *Agent) doUpdatesRequest(metrics []models.MetricsForSend) error {
-	jsonData, err := json.Marshal(&metrics)
-	if err != nil {
-		return fmt.Errorf("failed to marshal data: %w", err)
+
+	for i := 0; i < len(metrics); i += 5 {
+		end := i + 5
+		if end > len(metrics) {
+			end = len(metrics)
+		}
+		batch := metrics[i:end]
+
+		jsonData, err := json.Marshal(&batch)
+		if err != nil {
+			return fmt.Errorf("failed to marshal data: %w", err)
+		}
+		var hash string
+		if agent.SecretKey != "" {
+			hash = authsign.CalculateHash(jsonData, []byte(agent.SecretKey))
+		}
+
+		if agent.publicKeyPath != "" {
+			jsonData, err = cryptoutil.EncrypteBody(jsonData, agent.publicKeyPath)
+			if err != nil {
+				return fmt.Errorf("failed toencrypte body: %w", err)
+			}
+		}
+
+		var buf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&buf)
+
+		_, err = gzipWriter.Write(jsonData)
+		if err != nil {
+			return fmt.Errorf("failed to write to gzip writer: %w", err)
+		}
+
+		if err := gzipWriter.Close(); err != nil {
+			return fmt.Errorf("failed to close gzip writer: %w", err)
+		}
+
+		url := fmt.Sprintf("http://%s/updates/", agent.ServerAddress)
+
+		request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(buf.Bytes()))
+		if err != nil {
+			fmt.Println("Error sending request: %w\n", err)
+			return err
+		}
+
+		request.Header.Set("Content-Encoding", "gzip")
+		request.Header.Set("Accept-Encoding", "")
+		if hash != "" {
+			request.Header.Set(constants.HeaderSig, hash)
+		}
+		if agent.publicKeyPath != "" {
+			request.Header.Set("Content-Encrypted", "true")
+		}
+
+		resp, err := http.DefaultClient.Do(request)
+		if err != nil {
+			fmt.Println("Error sending request: %w\n", err)
+			return err
+		}
+
+		defer resp.Body.Close()
+
 	}
-	var hash string
-	if agent.SecretKey != "" {
-		hash = authsign.CalculateHash(jsonData, []byte(agent.SecretKey))
-	}
-
-	var buf bytes.Buffer
-	gzipWriter := gzip.NewWriter(&buf)
-
-	_, err = gzipWriter.Write(jsonData)
-	if err != nil {
-		return fmt.Errorf("failed to write to gzip writer: %w", err)
-	}
-
-	if err := gzipWriter.Close(); err != nil {
-		return fmt.Errorf("failed to close gzip writer: %w", err)
-	}
-
-	url := fmt.Sprintf("http://%s/updates/", agent.ServerAddress)
-
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(buf.Bytes()))
-	if err != nil {
-		fmt.Println("Error sending request: %w\n", err)
-		return err
-	}
-
-	request.Header.Set("Content-Encoding", "gzip")
-	request.Header.Set("Accept-Encoding", "")
-	if hash != "" {
-		request.Header.Set(constants.HeaderSig, hash)
-	}
-
-	resp, err := http.DefaultClient.Do(request)
-	if err != nil {
-		fmt.Println("Error sending request: %w\n", err)
-		return err
-	}
-
-	defer resp.Body.Close()
-
 	return nil
 }
 
