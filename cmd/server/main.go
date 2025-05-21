@@ -23,13 +23,20 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	_ "net/http/pprof"
 
 	"metrics/internal/config"
+	"metrics/internal/constants"
 	"metrics/internal/controller"
+	"metrics/internal/decryptmiddleware"
 	"metrics/internal/filetransfer"
 	"metrics/internal/handlers"
 	"metrics/internal/logger"
@@ -41,7 +48,16 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// глобальные переменные с информацией о версии
+var (
+	BuildVersion = "N/A"
+	BuildDate    = "N/A"
+	BuildCommit  = "N/A"
+)
+
 func main() {
+
+	printVersionInfo()
 
 	flags, err := config.ParseFlags()
 	if err != nil {
@@ -74,7 +90,7 @@ func main() {
 		defer writer.Close()
 	}
 
-	server := handlers.NewServer(config, writer, log, controller)
+	handler := handlers.NewServer(config, writer, log, controller)
 
 	if !config.IsSyncStore() && config.IsStoreInFileEnabled() {
 		ticker := time.NewTicker(time.Duration(config.Server.StoreInterval) * time.Second)
@@ -86,57 +102,69 @@ func main() {
 		worker.TriggerGoFunc(ticker, task)
 	}
 
-	router := chi.NewRouter()
-	router.Use()
+	dmw := decryptmiddleware.NewDecrypteMW(config, log)
 
-	router.Get("/", logger.WithLogging(middleware.GzipMiddleware(server.HandleGetAllMetrics)))
-
-	router.Get("/value/{metricType}/{metricName}", logger.WithLogging(middleware.GzipMiddleware(server.HandleGetOneMetric)))
-	router.Post("/value/", logger.WithLogging(middleware.GzipMiddleware(server.HandleGetOneMetricViaJSON)))
-
-	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(middleware.GzipMiddleware(server.HandleMetricUpdate)))
-	router.Post("/update/", logger.WithLogging(middleware.GzipMiddleware(server.HandleMetricUpdateViaJSON)))
-	router.Post("/updates/", logger.WithLogging(middleware.GzipMiddleware(server.HandleMetricUpdates)))
-
-	router.Get("/ping", logger.WithLogging(middleware.GzipMiddleware(server.HandlePing)))
+	router := createRouter(config, handler, dmw)
 
 	go func() {
 		log.Info("pprof listening on :6060")
 		http.ListenAndServe("localhost:6060", nil) // <- pprof listening on :6060
 	}()
 
-	err = http.ListenAndServe(config.Server.ServerAddress, router)
-	if err != nil {
-		panic(err)
+	var server = http.Server{
+		Addr:    config.Server.ServerAddress,
+		Handler: router,
+	}
+
+	idleConnsClosed := make(chan struct{})
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	go func() {
+		<-sigint
+		if err := server.Shutdown(context.Background()); err != nil {
+			err = fmt.Errorf("HTTP server Shutdown: %w", err)
+			log.Error(err.Error())
+		}
+		close(idleConnsClosed)
+	}()
+
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+		err = fmt.Errorf("HTTP server ListenAndServe: %w", err)
+		log.Fatal(err.Error())
+	}
+
+	<-idleConnsClosed
+
+	if !config.IsSyncStore() && config.IsStoreInFileEnabled() {
+		metrics := storage.GetAllMetricsInJSON()
+		writer.WriteMetrics(metrics...)
+	} else {
+		time.After(constants.ShutdownTimeout)
 	}
 
 }
 
-// func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		ow := w
+func printVersionInfo() {
+	fmt.Printf("Build version: %s\n", BuildVersion)
+	fmt.Printf("Build date: %s\n", BuildDate)
+	fmt.Printf("Build commit: %s\n", BuildCommit)
+}
 
-// 		supportsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
-// 		supportsGzipJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
-// 		supportsGzipHTML := strings.Contains(r.Header.Get("Accept"), "text/html")
-// 		if supportsGzip && (supportsGzipJSON || supportsGzipHTML) {
-// 			cw := middleware.NewCompressWriter(w)
-// 			ow = cw
-// 			defer cw.Close()
-// 			ow.Header().Set("Content-Encoding", "gzip")
-// 		}
+func createRouter(cfg *config.Config, handler *handlers.Server, dmw *decryptmiddleware.DecryptMiddleware) *chi.Mux {
+	router := chi.NewRouter()
+	router.Use()
 
-// 		sendsGzip := strings.Contains(r.Header.Get("Content-Encoding"), "gzip")
-// 		if sendsGzip {
-// 			cr, err := middleware.NewCompressReader(r.Body)
-// 			if err != nil {
-// 				w.WriteHeader(http.StatusInternalServerError)
-// 				return
-// 			}
-// 			r.Body = cr
-// 			defer cr.Close()
-// 		}
+	router.Get("/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(handler.HandleGetAllMetrics))))
 
-// 		h.ServeHTTP(ow, r)
-// 	}
-// }
+	router.Get("/value/{metricType}/{metricName}", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(handler.HandleGetOneMetric))))
+	router.Post("/value/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(handler.HandleGetOneMetricViaJSON))))
+
+	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(handler.HandleMetricUpdate))))
+	router.Post("/update/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(handler.HandleMetricUpdateViaJSON))))
+	router.Post("/updates/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(handler.HandleMetricUpdates))))
+
+	router.Get("/ping", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(handler.HandlePing))))
+
+	return router
+}

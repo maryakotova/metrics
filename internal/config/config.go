@@ -9,9 +9,10 @@ import "metrics/internal/constants"
 
 // Config - настройки используемые сервисом.
 type Config struct {
-	Server    ServerConfig
-	Database  DatabaseConfig
-	SecretKey string
+	Server         ServerConfig
+	Database       DatabaseConfig
+	SecretKey      string
+	PrivateKeyPath string
 }
 
 // ServerConfig- серверная часть настроек.
@@ -40,7 +41,8 @@ func NewConfig(flags *Flags) *Config {
 			DatabaseDsn: flags.Database.DatabaseDsn,
 			RetryCount:  constants.RetryCount,
 		},
-		SecretKey: flags.SecretKey,
+		SecretKey:      flags.SecretKey,
+		PrivateKeyPath: flags.PrivateCryptoKey,
 	}
 }
 
