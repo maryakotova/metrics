@@ -19,6 +19,7 @@ type Agent struct {
 	reportTicker   *time.Ticker
 	sendQueue      chan Metrics
 	resultQueue    chan Result
+	publicKeyPath  string
 }
 
 func New(cfg *Config) *Agent {
@@ -30,10 +31,11 @@ func New(cfg *Config) *Agent {
 		RateLimit:      cfg.RateLimit,
 		retriesCount:   3,
 
-		metrics:      make(map[string]interface{}),
-		pollTicker:   time.NewTicker(time.Duration(cfg.PollInterval) * time.Second),
-		reportTicker: time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second),
-		sendQueue:    make(chan Metrics, cfg.RateLimit),
-		resultQueue:  make(chan Result, cfg.RateLimit),
+		metrics:       make(map[string]interface{}),
+		pollTicker:    time.NewTicker(time.Duration(cfg.PollInterval) * time.Second),
+		reportTicker:  time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second),
+		sendQueue:     make(chan Metrics, cfg.RateLimit),
+		resultQueue:   make(chan Result, cfg.RateLimit),
+		publicKeyPath: cfg.PublicCryptoKey,
 	}
 }
