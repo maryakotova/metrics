@@ -23,6 +23,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 
 	"metrics/internal/config"
 	"metrics/internal/controller"
+	"metrics/internal/decryptmiddleware"
 	"metrics/internal/filetransfer"
 	"metrics/internal/handlers"
 	"metrics/internal/logger"
@@ -41,7 +43,16 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// глобальные переменные с информацией о версии
+var (
+	BuildVersion = "N/A"
+	BuildDate    = "N/A"
+	BuildCommit  = "N/A"
+)
+
 func main() {
+
+	printVersionInfo()
 
 	flags, err := config.ParseFlags()
 	if err != nil {
@@ -86,19 +97,21 @@ func main() {
 		worker.TriggerGoFunc(ticker, task)
 	}
 
+	dmw := decryptmiddleware.NewDecrypteMW(config, log)
+
 	router := chi.NewRouter()
 	router.Use()
 
-	router.Get("/", logger.WithLogging(middleware.GzipMiddleware(server.HandleGetAllMetrics)))
+	router.Get("/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleGetAllMetrics))))
 
-	router.Get("/value/{metricType}/{metricName}", logger.WithLogging(middleware.GzipMiddleware(server.HandleGetOneMetric)))
-	router.Post("/value/", logger.WithLogging(middleware.GzipMiddleware(server.HandleGetOneMetricViaJSON)))
+	router.Get("/value/{metricType}/{metricName}", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleGetOneMetric))))
+	router.Post("/value/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleGetOneMetricViaJSON))))
 
-	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(middleware.GzipMiddleware(server.HandleMetricUpdate)))
-	router.Post("/update/", logger.WithLogging(middleware.GzipMiddleware(server.HandleMetricUpdateViaJSON)))
-	router.Post("/updates/", logger.WithLogging(middleware.GzipMiddleware(server.HandleMetricUpdates)))
+	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleMetricUpdate))))
+	router.Post("/update/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleMetricUpdateViaJSON))))
+	router.Post("/updates/", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandleMetricUpdates))))
 
-	router.Get("/ping", logger.WithLogging(middleware.GzipMiddleware(server.HandlePing)))
+	router.Get("/ping", logger.WithLogging(middleware.GzipMiddleware(dmw.Decrypte(server.HandlePing))))
 
 	go func() {
 		log.Info("pprof listening on :6060")
@@ -109,34 +122,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 }
 
-// func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		ow := w
-
-// 		supportsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
-// 		supportsGzipJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
-// 		supportsGzipHTML := strings.Contains(r.Header.Get("Accept"), "text/html")
-// 		if supportsGzip && (supportsGzipJSON || supportsGzipHTML) {
-// 			cw := middleware.NewCompressWriter(w)
-// 			ow = cw
-// 			defer cw.Close()
-// 			ow.Header().Set("Content-Encoding", "gzip")
-// 		}
-
-// 		sendsGzip := strings.Contains(r.Header.Get("Content-Encoding"), "gzip")
-// 		if sendsGzip {
-// 			cr, err := middleware.NewCompressReader(r.Body)
-// 			if err != nil {
-// 				w.WriteHeader(http.StatusInternalServerError)
-// 				return
-// 			}
-// 			r.Body = cr
-// 			defer cr.Close()
-// 		}
-
-// 		h.ServeHTTP(ow, r)
-// 	}
-// }
+func printVersionInfo() {
+	fmt.Printf("Build version: %s\n", BuildVersion)
+	fmt.Printf("Build date: %s\n", BuildDate)
+	fmt.Printf("Build commit: %s\n", BuildCommit)
+}

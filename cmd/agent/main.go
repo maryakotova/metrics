@@ -11,13 +11,23 @@
 package main
 
 import (
+	"fmt"
 	"metrics/internal/agent"
 
 	"net/http"
 	_ "net/http/pprof"
 )
 
+// глобальные переменные с информацией о версии
+var (
+	BuildVersion = "N/A"
+	BuildDate    = "N/A"
+	BuildCommit  = "N/A"
+)
+
 func main() {
+
+	printVersionInfo()
 
 	cfg, err := agent.ParseFlags()
 	if err != nil {
@@ -45,4 +55,10 @@ func main() {
 
 	agent.WG.Wait()
 
+}
+
+func printVersionInfo() {
+	fmt.Printf("Build version: %s\n", BuildVersion)
+	fmt.Printf("Build date: %s\n", BuildDate)
+	fmt.Printf("Build commit: %s\n", BuildCommit)
 }
