@@ -20,6 +20,7 @@ type Agent struct {
 	sendQueue      chan Metrics
 	resultQueue    chan Result
 	publicKeyPath  string
+	realIP         string
 }
 
 func New(cfg *Config) *Agent {
@@ -37,5 +38,6 @@ func New(cfg *Config) *Agent {
 		sendQueue:     make(chan Metrics, cfg.RateLimit),
 		resultQueue:   make(chan Result, cfg.RateLimit),
 		publicKeyPath: cfg.PublicCryptoKey,
+		realIP:        cfg.RealIP,
 	}
 }

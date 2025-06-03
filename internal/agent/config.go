@@ -19,6 +19,8 @@ type Config struct {
 	PublicCryptoKey string //`env:"CRYPTO_KEY"`
 	ConfigPath      string //`env:CONFIG`
 	ConfigPathShort string
+	// не знаю, как еще можно получить IP адрес агента, поэтому решила использовать переменные окружения и флаги
+	RealIP string //`env:REAL_IP`
 }
 
 func ParseFlags() (*Config, error) {
@@ -33,7 +35,8 @@ func ParseFlags() (*Config, error) {
 	flag.IntVar(&cfg.RateLimit, "l", 4, "Количество одновременно исходящих запросов на сервер")
 	flag.StringVar(&cfg.PublicCryptoKey, "crypto-key", "", "Путь до файла с публичным ключом") //./key/cert.pem
 	flag.StringVar(&cfg.ConfigPath, "config", "", "конфигурации сервера с помощью файла в формате JSON")
-	flag.StringVar(&cfg.ConfigPath, "c", "", "конфигурации сервера с помощью файла в формате JSON(shorthand)")
+	flag.StringVar(&cfg.ConfigPathShort, "c", "", "конфигурации сервера с помощью файла в формате JSON(shorthand)")
+	flag.StringVar(&cfg.RealIP, "i", "", "IP адрес агента для заполнения заголовка X-Real-IP")
 
 	//аргументы командной строки
 	flag.Parse()
@@ -100,6 +103,10 @@ func ParseFlags() (*Config, error) {
 		cfg.PublicCryptoKey = publicKey
 	} else if cfg.PublicCryptoKey != "" && agentConfig.CryptoKey != "" {
 		cfg.PublicCryptoKey = agentConfig.CryptoKey
+	}
+
+	if realIP := os.Getenv("REAL_IP"); realIP != "" {
+		cfg.RealIP = realIP
 	}
 
 	return &cfg, nil
