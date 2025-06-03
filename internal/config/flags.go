@@ -28,8 +28,9 @@ type Flags struct {
 	}
 	SecretKey        string //`env:"KEY"`
 	PrivateCryptoKey string //`env:"CRYPTO_KEY"`
-	ConfigPath       string //`env:CONFIG`
+	ConfigPath       string //`env:"CONFIG"`
 	ConfigPathShort  string
+	TrustedSubnet    string //`env:"TRUSTED_SUBNET"`
 }
 
 // В функции ParseFlags происходит парсинг аргументов командной строки и получение значений из переменных окружения.
@@ -46,7 +47,8 @@ func ParseFlags() (*Flags, error) {
 	flag.StringVar(&flags.SecretKey, "k", "", "Ключ для подписи передаваемых данных")
 	flag.StringVar(&flags.PrivateCryptoKey, "crypto-key", "", "Путь до файла с приватным ключом") //./key/private_key.pem
 	flag.StringVar(&flags.ConfigPath, "config", "", "конфигурации сервера с помощью файла в формате JSON")
-	flag.StringVar(&flags.ConfigPath, "c", "", "конфигурации сервера с помощью файла в формате JSON(shorthand)")
+	flag.StringVar(&flags.ConfigPathShort, "c", "", "конфигурации сервера с помощью файла в формате JSON(shorthand)")
+	flag.StringVar(&flags.TrustedSubnet, "t", "", "строковое представление бесклассовой адресации (CIDR) для проверки IP клиента")
 
 	//аргументы командной строки
 	flag.Parse()
@@ -103,7 +105,7 @@ func ParseFlags() (*Flags, error) {
 
 	if envDSN := os.Getenv("DATABASE_DSN"); envDSN != "" {
 		flags.Database.DatabaseDsn = envDSN
-	} else if flags.Database.DatabaseDsn != "" && serverConfig.DatabaseDSN != "" {
+	} else if flags.Database.DatabaseDsn == "" && serverConfig.DatabaseDSN != "" {
 		flags.Database.DatabaseDsn = serverConfig.DatabaseDSN
 	}
 
@@ -113,8 +115,14 @@ func ParseFlags() (*Flags, error) {
 
 	if privateKey := os.Getenv("CRYPTO_KEY"); privateKey != "" {
 		flags.PrivateCryptoKey = privateKey
-	} else if flags.PrivateCryptoKey != "" && serverConfig.CryptoKey != "" {
+	} else if flags.PrivateCryptoKey == "" && serverConfig.CryptoKey != "" {
 		flags.PrivateCryptoKey = serverConfig.CryptoKey
+	}
+
+	if trustedSubnet := os.Getenv("TRUSTED_SUBNETY"); trustedSubnet != "" {
+		flags.TrustedSubnet = trustedSubnet
+	} else if flags.TrustedSubnet == "" && serverConfig.TrustedSubnet != "" {
+		flags.TrustedSubnet = serverConfig.TrustedSubnet
 	}
 
 	return &flags, nil

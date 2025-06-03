@@ -1,6 +1,8 @@
 // В пакете constants хранятся глобальные константы.
 package constants
 
+import "time"
+
 const (
 	Gauge                        = "gauge"
 	Counter                      = "counter"
@@ -13,4 +15,5 @@ const (
 	DefaultStoreFile             = "./metricsStorage.json"
 	DefaultReportInterval int64  = 5
 	DefaultPollInterval   int64  = 2
+	ShutdownTimeout              = 5 * time.Second
 )
