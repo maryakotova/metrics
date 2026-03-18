@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package metrics;
+
+enum MetricType {
+    GAUGE = 0;
+    COUNTER = 1;
+}
+
+option go_package = "metrics/internal/grpc";
+
+message Metric {
+  string name = 1;
+  MetricType type = 2;
+  optional int64 delta = 3;
+  optional double value = 4;
+}
+
+message MetricUpdateRequest{
+    Metric metric = 1;
+}
+
+message MetricUpdateResponse{
+    Metric metric = 1;
+}
+
+message GetOneMetricRequest{
+    Metric metric = 1;
+}
+
+message GetOneMetricResponse{
+    Metric metric = 1;
+}
+
+mesasge BatchUpdateRequest{
+    repeated Metric metrics = 1;
+}
+mesasge BatchUpdateResponse{
+    bool success = 1;
+    string error = 2;
+}   
+
+message PingRequest {}
+
+message PingResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+service MetricsService {
+
+    rpc UpdateOneMetric(MetricUpdateRequest) returns (MetricUpdateResponse);
+
+    rpc GetOneMetric(GetOneMetricRequest) returns (GetOneMetricResponse);
+
+    rpc UpdateMetricsBatch(BatchUpdateRequest) returns (BatchUpdateResponse);
+
+    rpc Ping(PingRequest) returns (PingResponse);
+
+    rpc StrumMetrics(stream Metric) returns (BatchUpdateResponse);
+
+}
