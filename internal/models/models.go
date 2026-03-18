@@ -25,6 +25,7 @@ type JSONConfigServer struct {
 	StoreFile     string `json:"store_file"`     // аналог переменной окружения STORE_FILE или -f
 	DatabaseDSN   string `json:"database_dsn"`   // аналог переменной окружения DATABASE_DSN или флага -d
 	CryptoKey     string `json:"crypto_key"`     // аналог переменной окружения CRYPTO_KEY или флага -crypto-key
+	TrustedSubnet string `json:"trusted_subnet"` // аналог переменной окружения TRUSTED_SUBNET или флага -t
 }
 
 // Конфигурации агента с помощью файла в формате JSON

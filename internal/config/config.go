@@ -13,6 +13,7 @@ type Config struct {
 	Database       DatabaseConfig
 	SecretKey      string
 	PrivateKeyPath string
+	TrustedSubnet  string
 }
 
 // ServerConfig- серверная часть настроек.
@@ -43,6 +44,7 @@ func NewConfig(flags *Flags) *Config {
 		},
 		SecretKey:      flags.SecretKey,
 		PrivateKeyPath: flags.PrivateCryptoKey,
+		TrustedSubnet:  flags.TrustedSubnet,
 	}
 }
 
