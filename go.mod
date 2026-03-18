@@ -2,6 +2,8 @@ module metrics
 
 go 1.26.1
 
+toolchain go1.24.13
+
 require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/jackc/pgconn v1.14.3
